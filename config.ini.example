@@ -1,0 +1,16 @@
+# JiekouAI API Configuration
+# Copy this file to config.ini and fill in your API key
+# DO NOT commit config.ini to version control
+
+[AUTH]
+# Your JiekouAI API Key (required)
+api_key = YOUR_API_KEY_HERE
+
+[API]
+# API Base URL (optional, for testing environments)
+base_url = https://api.jiekou.ai
+
+[CACHE]
+# Model list cache TTL in seconds (default: 3600 = 1 hour)
+cache_ttl = 3600
+
