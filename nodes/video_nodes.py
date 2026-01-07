@@ -265,6 +265,8 @@ class JieKouVideoGeneration:
     
     def _submit_unified_task(self, api, registry, model: str, prompt: str, image_url: str, kwargs) -> str:
         """Submit task using unified API (/v3/video/create)"""
+        from ..utils.tensor_utils import is_local_file_path, local_file_to_base64
+        
         # Get supported parameters for this model
         supported_params = set(registry.get_video_model_param_names(model))
         logger.info(f"[JieKou] Model {model} supports params: {supported_params}")
@@ -282,8 +284,13 @@ class JieKouVideoGeneration:
         # Handle image input (only if model supports it)
         if image_url and image_url.strip():
             if "image" in supported_params:
-                logger.info(f"[JieKou] Using image_url: {image_url[:50]}...")
-                params["image"] = image_url.strip()
+                input_image_data = image_url.strip()
+                # Check if it's a local file path and convert to base64
+                if is_local_file_path(input_image_data):
+                    logger.info(f"[JieKou] Detected local file path, converting to base64...")
+                    input_image_data = local_file_to_base64(input_image_data)
+                logger.info(f"[JieKou] Using image_url: {input_image_data[:50]}...")
+                params["image"] = input_image_data
             else:
                 logger.warning(f"[JieKou] Model {model} does not support image input, ignoring...")
         
@@ -305,6 +312,8 @@ class JieKouVideoGeneration:
         Wan 2.6 models use different payload structure:
         { input: {prompt, img_url, ...}, parameters: {seed, size, ...} }
         """
+        from ..utils.tensor_utils import is_local_file_path, local_file_to_base64
+        
         model_config = registry.get_model(model)
         endpoint = model_config.endpoint
         
@@ -343,8 +352,13 @@ class JieKouVideoGeneration:
         # Handle image input (Wan 2.6 uses img_url in input)
         if image_url and image_url.strip():
             if "img_url" in input_param_names:
-                logger.info(f"[JieKou] Using image_url for Wan 2.6 (img_url): {image_url[:50]}...")
-                input_params["img_url"] = image_url.strip()
+                input_image_data = image_url.strip()
+                # Check if it's a local file path and convert to base64
+                if is_local_file_path(input_image_data):
+                    logger.info(f"[JieKou] Detected local file path, converting to base64...")
+                    input_image_data = local_file_to_base64(input_image_data)
+                logger.info(f"[JieKou] Using image_url for Wan 2.6 (img_url): {input_image_data[:50]}...")
+                input_params["img_url"] = input_image_data
             else:
                 logger.warning(f"[JieKou] Model {model} does not support img_url input, ignoring...")
         

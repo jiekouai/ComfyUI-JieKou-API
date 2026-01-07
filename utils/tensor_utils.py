@@ -240,3 +240,72 @@ def audio_to_comfy(audio_bytes: bytes) -> dict:
 # Alias for binary audio data (same function, clearer naming)
 audio_bytes_to_comfy = audio_to_comfy
 
+
+# ===== Local file to base64 =====
+def local_file_to_base64(file_path: str) -> str:
+    """
+    Read a local image file and convert to base64 data URL
+    
+    Args:
+        file_path: Local file path to image
+    
+    Returns:
+        Base64 data URL string (e.g., "data:image/png;base64,...")
+    """
+    import os
+    import mimetypes
+    
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"文件不存在: {file_path}")
+    
+    # Detect MIME type
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type:
+        mime_type = "image/png"  # Default to PNG
+    
+    # Read and encode
+    with open(file_path, "rb") as f:
+        image_bytes = f.read()
+    
+    b64_string = base64.b64encode(image_bytes).decode("utf-8")
+    
+    logger.info(f"[JieKou] Loaded local image: {file_path} ({len(image_bytes)} bytes)")
+    
+    return f"data:{mime_type};base64,{b64_string}"
+
+
+def is_local_file_path(path: str) -> bool:
+    """
+    Check if a string looks like a local file path
+    
+    Args:
+        path: String to check
+    
+    Returns:
+        True if it looks like a local file path
+    """
+    import os
+    
+    # Skip URLs
+    if path.startswith("http://") or path.startswith("https://"):
+        return False
+    
+    # Skip base64 data URLs
+    if path.startswith("data:"):
+        return False
+    
+    # Check if it's an absolute or relative path that exists
+    # Or if it looks like a path (contains path separators)
+    if os.path.exists(path):
+        return True
+    
+    # Check for common path patterns
+    if path.startswith("/") or path.startswith("~") or path.startswith("./") or path.startswith("..\\"):
+        return True
+    
+    # Windows absolute paths
+    if len(path) > 2 and path[1] == ":" and (path[2] == "/" or path[2] == "\\"):
+        return True
+    
+    return False
+

@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[JieKou]")
 
 # Plugin metadata
-__version__ = "1.1.2"  # Updated for API compatibility fixes
+__version__ = "1.1.3"  # Updated for API compatibility fixes
 __author__ = "JiekouAI"
 
 # ===== Web Directory for JavaScript Extensions =====

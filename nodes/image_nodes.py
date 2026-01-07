@@ -500,9 +500,16 @@ class JieKouImageToImage:
             if model_id != model:
                 logger.info(f"[JieKou] Resolved model: {model} -> {model_id}")
             
-            # Use image_url directly (URL or base64)
+            # Handle input: URL, base64, or local file path
             input_image_data = image_url.strip()
-            # Check if it's base64 (not starting with http)
+            
+            # Check if it's a local file path and convert to base64
+            from ..utils.tensor_utils import is_local_file_path, local_file_to_base64
+            if is_local_file_path(input_image_data):
+                logger.info(f"[JieKou] Detected local file path, converting to base64...")
+                input_image_data = local_file_to_base64(input_image_data)
+            
+            # Check if it's a URL (not base64)
             is_url = input_image_data.startswith("http://") or input_image_data.startswith("https://")
             
             endpoint = model_config.endpoint
@@ -725,11 +732,16 @@ class JieKouImageUpscale:
         
         try:
             from ..utils.api_client import JiekouAPI, JiekouAPIError
-            from ..utils.tensor_utils import url_to_tensor
+            from ..utils.tensor_utils import url_to_tensor, is_local_file_path, local_file_to_base64
             
             api = JiekouAPI()
             
             input_image_data = image_url.strip()
+            
+            # Check if it's a local file path and convert to base64
+            if is_local_file_path(input_image_data):
+                logger.info(f"[JieKou] Detected local file path, converting to base64...")
+                input_image_data = local_file_to_base64(input_image_data)
             
             data = {
                 "image": input_image_data,
@@ -832,11 +844,16 @@ class JieKouRemoveBackground:
         
         try:
             from ..utils.api_client import JiekouAPI, JiekouAPIError
-            from ..utils.tensor_utils import url_to_tensor
+            from ..utils.tensor_utils import url_to_tensor, is_local_file_path, local_file_to_base64
             
             api = JiekouAPI()
             
             input_image_data = image_url.strip()
+            
+            # Check if it's a local file path and convert to base64
+            if is_local_file_path(input_image_data):
+                logger.info(f"[JieKou] Detected local file path, converting to base64...")
+                input_image_data = local_file_to_base64(input_image_data)
             
             data = {
                 "image": input_image_data,
