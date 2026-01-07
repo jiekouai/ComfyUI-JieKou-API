@@ -263,10 +263,16 @@ class JieKouTextToImage:
             if model_id in ["gpt-image-1", "seedream-3-0-t2i-250415"]:
                 data["model"] = model_id
             
-            # Add all dynamic parameters
+            # Add all dynamic parameters (filter out empty strings and None)
             for key, value in kwargs.items():
-                if value is not None and key != "extra_params":
-                    data[key] = value
+                if key == "extra_params":
+                    continue
+                # Skip None and empty strings (API may reject empty optional params)
+                if value is None:
+                    continue
+                if isinstance(value, str) and value.strip() == "":
+                    continue
+                data[key] = value
             
             # Log request body (hide base64 data for readability)
             log_data = {k: (v[:50] + "..." if isinstance(v, str) and len(v) > 100 else v) for k, v in data.items()}
@@ -516,10 +522,16 @@ class JieKouImageToImage:
                 # Default: single image field
                 data["image"] = input_image_data
             
-            # Add all dynamic parameters
+            # Add all dynamic parameters (filter out empty strings and None)
             for key, value in kwargs.items():
-                if value is not None and key != "extra_params":
-                    data[key] = value
+                if key == "extra_params":
+                    continue
+                # Skip None and empty strings (API may reject empty optional params)
+                if value is None:
+                    continue
+                if isinstance(value, str) and value.strip() == "":
+                    continue
+                data[key] = value
             
             # Log request body (hide base64 data for readability)
             log_data = {}
