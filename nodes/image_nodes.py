@@ -317,7 +317,21 @@ class JieKouTextToImage:
                     image_url = first_image["url"]
                     image_tensor = url_to_tensor(image_url)
                 else:
-                    raise ValueError("API 返回的图像数据格式未知")
+                    # Check for error messages in response (e.g., content blocked)
+                    error_msg = ""
+                    if isinstance(first_image, dict):
+                        # Check revised_prompt for error info (some APIs embed errors here)
+                        revised = first_image.get("revised_prompt", "")
+                        if "blocked" in revised.lower() or "error" in revised.lower():
+                            error_msg = revised
+                        # Check for explicit error field
+                        elif first_image.get("error"):
+                            error_msg = first_image.get("error")
+                    
+                    if error_msg:
+                        raise ValueError(f"API 请求被拒绝: {error_msg[:200]}")
+                    else:
+                        raise ValueError("API 返回的图像数据格式未知")
             
             elif response_type == "image_urls":
                 # Sync API with URL response
@@ -512,8 +526,11 @@ class JieKouImageToImage:
                     # For URL input, Gemini might not support it directly, try anyway
                     data["image_base64s"] = [input_image_data]
                 else:
-                    # Extract base64 without data:image prefix
-                    data["image_base64s"] = [input_b64]
+                    # Extract base64 without data:image prefix (e.g., "data:image/png;base64,xxx" -> "xxx")
+                    raw_b64 = input_image_data
+                    if "," in input_image_data:
+                        raw_b64 = input_image_data.split(",", 1)[1]
+                    data["image_base64s"] = [raw_b64]
             elif model_id == "gpt-image-1-edit":
                 # GPT uses image array with model field
                 data["image"] = [input_image_data]
@@ -580,7 +597,21 @@ class JieKouImageToImage:
                     image_url = first_image["url"]
                     image_tensor = url_to_tensor(image_url)
                 else:
-                    raise ValueError("API 返回的图像数据格式未知")
+                    # Check for error messages in response (e.g., content blocked)
+                    error_msg = ""
+                    if isinstance(first_image, dict):
+                        # Check revised_prompt for error info (some APIs embed errors here)
+                        revised = first_image.get("revised_prompt", "")
+                        if "blocked" in revised.lower() or "error" in revised.lower():
+                            error_msg = revised
+                        # Check for explicit error field
+                        elif first_image.get("error"):
+                            error_msg = first_image.get("error")
+                    
+                    if error_msg:
+                        raise ValueError(f"API 请求被拒绝: {error_msg[:200]}")
+                    else:
+                        raise ValueError("API 返回的图像数据格式未知")
             
             elif response_type == "image_urls":
                 urls = response.get("image_urls") or response.get("images", [])
