@@ -48,14 +48,14 @@
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/pplabs/ComfyUI-JieKou-API.git
+git clone https://github.com/jiekouai/ComfyUI-JieKou-API
 cd ComfyUI-JieKou-API
 pip install -r requirements.txt
 ```
 
 ### 方式三：ZIP 安装
 
-1. 下载 [最新版本](https://github.com/pplabs/ComfyUI-JieKou-API/releases)
+1. 下载 [最新版本](https://github.com/jiekouai/ComfyUI-JieKou-API)
 2. 解压到 `ComfyUI/custom_nodes/` 目录
 3. 运行 `pip install -r requirements.txt`
 
