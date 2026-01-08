@@ -6,6 +6,7 @@
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Plugin-blue)](https://github.com/comfyanonymous/ComfyUI)
 [![Version](https://img.shields.io/badge/version-1.2.0-green)](https://github.com/jiekouai/ComfyUI-JieKou-API)
 
+[简体中文](README_zh.md)
 
 ## ✨ Features
 
