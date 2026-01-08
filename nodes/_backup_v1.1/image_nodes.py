@@ -674,7 +674,7 @@ class JieKouImageUpscale:
     - image_url: Directly provide an image URL (higher priority if both provided)
     """
     
-    CATEGORY = "JieKou AI/Image/Tools"
+    CATEGORY = "JieKou/Image"
     FUNCTION = "upscale"
     RETURN_TYPES = ("IMAGE", "STRING",)
     RETURN_NAMES = ("image", "image_path",)
@@ -795,7 +795,7 @@ class JieKouRemoveBackground:
     - image_url: Directly provide an image URL (higher priority if both provided)
     """
     
-    CATEGORY = "JieKou AI/Image/Tools"
+    CATEGORY = "JieKou/Image"
     FUNCTION = "remove_bg"
     RETURN_TYPES = ("IMAGE", "STRING",)
     RETURN_NAMES = ("image", "image_path",)

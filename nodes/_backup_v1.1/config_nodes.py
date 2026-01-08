@@ -15,7 +15,7 @@ class JieKouTestConnection:
     Simply outputs connection status message
     """
     
-    CATEGORY = "JieKou AI/Config"
+    CATEGORY = "JieKou/Config"
     FUNCTION = "test_connection"
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("status",)

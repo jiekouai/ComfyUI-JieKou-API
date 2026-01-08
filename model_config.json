@@ -5399,7 +5399,7 @@
       "id": "kling_o1_video_edit",
       "name": "Kling-o1 视频编辑",
       "description": "Kling-o1 视频编辑",
-      "category": "image_edit",
+      "category": "video_v2v",
       "endpoint": "/v3/async/kling-o1-video-edit",
       "is_async": true,
       "response_type": "task_id",
@@ -6498,6 +6498,137 @@
           "required": false,
           "default": null,
           "enum": null,
+          "minimum": null,
+          "maximum": null
+        }
+      ],
+      "product_ids": [
+        "SEEDREAM_4_5_IMG_GEN"
+      ],
+      "valid_combinations": []
+    },
+    {
+      "id": "seedream4_0_i2i",
+      "name": "Seedream 图生图 4.0",
+      "description": "Seedream 4.0 图生图模式，根据参考图像生成新图像",
+      "category": "image_edit",
+      "endpoint": "/v3/seedream-4.0",
+      "is_async": false,
+      "response_type": "image_urls",
+      "parameters": [
+        {
+          "name": "prompt",
+          "type": "string",
+          "description": "用于生成图像的提示词，支持中英文。建议不超过 300 个汉字或 600 个英文单词。",
+          "required": true,
+          "default": null,
+          "enum": null,
+          "minimum": null,
+          "maximum": null
+        },
+        {
+          "name": "size",
+          "type": "string",
+          "description": "设置生成图像的规格。可选值：1K, 2K, 4K，或指定宽高像素值如 2048x2048。",
+          "required": false,
+          "default": null,
+          "enum": [
+            "1K",
+            "2K",
+            "4K",
+            "2048x2048"
+          ],
+          "minimum": null,
+          "maximum": null
+        },
+        {
+          "name": "sequential_image_generation",
+          "type": "string",
+          "description": "控制是否禁用批量生成功能。auto：模型自动决定；disabled：只生成一张图像。",
+          "required": false,
+          "default": "disabled",
+          "enum": [
+            "auto",
+            "disabled"
+          ],
+          "minimum": null,
+          "maximum": null
+        },
+        {
+          "name": "max_images",
+          "type": "integer",
+          "description": "指定此请求中要生成的最大图像数量。仅在 sequential_image_generation 设置为 auto 时有效。取值范围：[1, 15]",
+          "required": false,
+          "default": 15,
+          "enum": null,
+          "minimum": 1,
+          "maximum": 15
+        },
+        {
+          "name": "watermark",
+          "type": "boolean",
+          "description": "是否添加水印。false：不添加；true：添加 AI 生成 水印。",
+          "required": false,
+          "default": true,
+          "enum": null,
+          "minimum": null,
+          "maximum": null
+        }
+      ],
+      "product_ids": [
+        "SEEDREAM_4_0_IMG_GEN"
+      ],
+      "valid_combinations": []
+    },
+    {
+      "id": "seedream_4_5_i2i",
+      "name": "Seedream 图生图 4.5",
+      "description": "Seedream 4.5 图生图模式，根据参考图像生成新图像",
+      "category": "image_edit",
+      "endpoint": "/v3/seedream-4.5",
+      "is_async": false,
+      "response_type": "image_urls",
+      "parameters": [
+        {
+          "name": "prompt",
+          "type": "string",
+          "description": "用于生成图像的提示词，支持中英文。建议不超过300个汉字或600个英文单词。",
+          "required": true,
+          "default": null,
+          "enum": null,
+          "minimum": null,
+          "maximum": null
+        },
+        {
+          "name": "size",
+          "type": "string",
+          "description": "指定生成图像的尺寸。支持分辨率（2K、4K）或宽高像素值（如2048x2048）。",
+          "required": false,
+          "default": "2048x2048",
+          "enum": null,
+          "minimum": null,
+          "maximum": null
+        },
+        {
+          "name": "watermark",
+          "type": "boolean",
+          "description": "是否在生成的图片中添加水印。",
+          "required": false,
+          "default": true,
+          "enum": null,
+          "minimum": null,
+          "maximum": null
+        },
+        {
+          "name": "sequential_image_generation",
+          "type": "string",
+          "description": "控制是否关闭组图功能。auto：自动判断模式；disabled：关闭组图功能，只生成一张图。",
+          "required": false,
+          "default": "disabled",
+          "enum": [
+            "auto",
+            "disabled"
+          ],
           "minimum": null,
           "maximum": null
         }
@@ -9717,7 +9848,7 @@
       "id": "flux_1_kontext_dev",
       "name": "FLUX.1 Kontext Dev",
       "description": "FLUX.1 Kontext Dev",
-      "category": "video_t2v",
+      "category": "image_edit",
       "endpoint": "/v3/async/flux-1-kontext-dev",
       "is_async": true,
       "response_type": "task_id",
@@ -9832,7 +9963,7 @@
       "id": "flux_1_kontext_max",
       "name": "FLUX.1 Kontext Max",
       "description": "FLUX.1 Kontext Max",
-      "category": "video_t2v",
+      "category": "image_edit",
       "endpoint": "/v3/async/flux-1-kontext-max",
       "is_async": true,
       "response_type": "task_id",
@@ -9923,7 +10054,7 @@
       "id": "flux_1_kontext_pro",
       "name": "FLUX.1 Kontext Pro",
       "description": "FLUX.1 Kontext Pro",
-      "category": "video_t2v",
+      "category": "image_edit",
       "endpoint": "/v3/async/flux-1-kontext-pro",
       "is_async": true,
       "response_type": "task_id",
@@ -10016,99 +10147,10 @@
       ]
     },
     {
-      "id": "flux1_kontext_pro",
-      "name": "FLUX.1 Kontext Pro",
-      "description": "FLUX.1 Kontext Pro",
-      "category": "video_t2v",
-      "endpoint": "/v3/async/flux-1-kontext-pro",
-      "is_async": true,
-      "response_type": "task_id",
-      "parameters": [
-        {
-          "name": "prompt",
-          "type": "string",
-          "description": "用于生成图像的提示词。",
-          "required": true,
-          "default": null,
-          "enum": null,
-          "minimum": null,
-          "maximum": null
-        },
-        {
-          "name": "images",
-          "type": "string[]",
-          "description": "用于生成图像的图片列表。最多支持 4 张图片。",
-          "required": false,
-          "default": null,
-          "enum": null,
-          "minimum": null,
-          "maximum": null
-        },
-        {
-          "name": "guidance_scale",
-          "type": "number",
-          "description": "引导系数，用于控制生成。默认值为 3.5。取值范围：[1.0 ~ 20.0]。",
-          "required": false,
-          "default": null,
-          "enum": null,
-          "minimum": null,
-          "maximum": null
-        },
-        {
-          "name": "aspect_ratio",
-          "type": "string",
-          "description": "生成图像的宽高比。<br/>\n  可选：`21:9`、`16:9`、`4:3`、`3:2`、`1:1`、`2:3`、`3:4`、`9:16`、`9:21`",
-          "required": false,
-          "default": null,
-          "enum": [
-            "21:9",
-            "16:9",
-            "4:3",
-            "3:2",
-            "1:1",
-            "2:3",
-            "3:4",
-            "9:16",
-            "9:21"
-          ],
-          "minimum": null,
-          "maximum": null
-        },
-        {
-          "name": "seed",
-          "type": "integer",
-          "description": "随机种子。默认值为 -1，-1 表示使用随机种子。取值范围：[-1 ~ 2147483647]。",
-          "required": false,
-          "default": null,
-          "enum": null,
-          "minimum": null,
-          "maximum": null
-        },
-        {
-          "name": "safety_tolerance",
-          "type": "string",
-          "description": "仅在文生图模式下支持。<br/>\n  生成图像的安全容忍等级，1 为最严格，5 为最宽松，默认值为 2。<br/>\n  可选：`1`、`2`、`3`、`4`、`5`",
-          "required": false,
-          "default": null,
-          "enum": [
-            "1",
-            "2",
-            "3",
-            "4",
-            "5"
-          ],
-          "minimum": null,
-          "maximum": null
-        }
-      ],
-      "product_ids": [],
-      "valid_combinations": []
-    },
-    {
       "id": "flux_2_dev",
       "name": "Flux 2 Dev 生图",
       "description": "Flux 2 Dev 生图",
-      "category": "video_t2v",
+      "category": "image_edit",
       "endpoint": "/v3/async/flux-2-dev",
       "is_async": true,
       "response_type": "task_id",
@@ -10185,7 +10227,7 @@
       "id": "flux_2_flex",
       "name": "Flux 2 Flex 生图",
       "description": "Flux 2 Flex 生图",
-      "category": "video_t2v",
+      "category": "image_edit",
       "endpoint": "/v3/async/flux-2-flex",
       "is_async": true,
       "response_type": "task_id",
@@ -10241,7 +10283,7 @@
       "id": "flux_2_pro",
       "name": "Flux 2 Pro 生图",
       "description": "Flux 2 Pro 生图",
-      "category": "video_t2v",
+      "category": "image_edit",
       "endpoint": "/v3/async/flux-2-pro",
       "is_async": true,
       "response_type": "task_id",
@@ -10306,7 +10348,7 @@
       "id": "hunyuan_image_3",
       "name": "Hunyuan Image 3",
       "description": "Hunyuan Image 3",
-      "category": "video_t2v",
+      "category": "image_t2i",
       "endpoint": "/v3/async/hunyuan-image-3",
       "is_async": true,
       "response_type": "task_id",
@@ -13657,7 +13699,7 @@
       "id": "z_image_turbo",
       "name": "Z Image 文生图 Turbo",
       "description": "Z Image 文生图 Turbo",
-      "category": "video_t2v",
+      "category": "image_t2i",
       "endpoint": "/v3/async/z-image-turbo",
       "is_async": true,
       "response_type": "task_id",
@@ -13712,7 +13754,7 @@
       "id": "z_image_turbo_lora",
       "name": "Z Image 文生图 Turbo LoRA",
       "description": "Z Image 文生图 Turbo LoRA",
-      "category": "video_t2v",
+      "category": "image_t2i",
       "endpoint": "/v3/async/z-image-turbo-lora",
       "is_async": true,
       "response_type": "task_id",

@@ -1,50 +1,79 @@
 # ComfyUI-JieKou-API
 
-[接口 AI](https://jiekou.ai) 平台 ComfyUI 插件 - 一站式接入多模态 AI 能力
+[JieKou AI](https://jiekou.ai) Platform ComfyUI Plugin - All-in-one Multimodal AI Integration
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Plugin-blue)](https://github.com/comfyanonymous/ComfyUI)
+[![Version](https://img.shields.io/badge/version-1.2.0-green)](https://github.com/jiekouai/ComfyUI-JieKou-API)
 
-## ✨ 功能特性
+[中文文档](README_zh.md)
 
-- 🖼️ **文生图 (Text-to-Image)** - 支持 GPT-Image、FLUX、Seedream、Midjourney 等多种模型
-- 🎨 **图生图 (Image-to-Image)** - 图像编辑、风格转换
-- 📹 **视频生成 (Video Generation)** - 支持 Wan、Sora、Veo、Kling、Minimax 等模型
-- 🔍 **图像放大 (Image Upscale)** - 2K/4K/8K 超分辨率
-- ✂️ **背景移除 (Remove Background)** - 智能抠图
+## ✨ Features
 
-## 📦 支持的模型
+- 🖼️ **Text-to-Image** - GPT-Image, FLUX, Seedream, Midjourney, and more
+- 🎨 **Image-to-Image** - Image editing, style transfer, and enhancement
+- 📹 **Video Generation** - Wan, Sora, Veo, Kling, Minimax, and more
+- 🔍 **Image Upscale** - 2K/4K/8K super-resolution
+- ✂️ **Remove Background** - Intelligent background removal
+- 🔊 **Audio Generation** - Text-to-speech with ElevenLabs and more
+- 💰 **Real-time Pricing** - See estimated cost before generation (v1.2+)
 
-### 图像模型
-| 模型 | 文生图 | 图生图 |
-|------|--------|--------|
-| GPT Image | ✅ | ✅ |
-| FLUX Kontext Pro/Dev/Max | ✅ | ✅ |
-| Seedream 3.0/4.0/4.5 | ✅ | ✅ |
-| Gemini 2.5/3.0 | ✅ | ✅ |
+## 🆕 What's New in v1.2
+
+- **Model-Specific Nodes**: Each model now has its own dedicated node (e.g., "JieKou AI > Image > Seedream 4.0")
+- **Real-time Price Display**: See the estimated cost in the top-right corner of each node
+- **Dynamic Parameter Linkage**: Parameters automatically filter based on valid combinations
+- **112 Models Supported**: Comprehensive coverage across image, video, and audio
+
+## 📦 Supported Models
+
+### Image Models (23 models)
+
+| Model | Text-to-Image | Image-to-Image |
+|-------|---------------|----------------|
+| GPT Image 1 | ✅ | ✅ |
+| FLUX.1 Kontext Pro/Dev/Max | ✅ | ✅ |
+| FLUX 2 Pro/Dev/Flex | ✅ | - |
+| Seedream 4.0/4.5 | ✅ | ✅ |
+| Gemini 2.5 Flash / 3 Pro | ✅ | ✅ |
 | Qwen Image | ✅ | ✅ |
 | Midjourney | ✅ | - |
-| Hunyuan Image | ✅ | - |
+| Hunyuan Image 3 | ✅ | - |
+| Z Image Turbo | ✅ | - |
 
-### 视频模型
-| 模型 | 文生视频 | 图生视频 |
-|------|----------|----------|
+### Video Models (64 models)
+
+| Model | Text-to-Video | Image-to-Video |
+|-------|---------------|----------------|
 | Wan 2.2/2.6 | ✅ | ✅ |
 | Sora 2 | ✅ | ✅ |
 | Veo 3 | ✅ | ✅ |
-| Kling 2.5 | ✅ | ✅ |
-| Minimax | ✅ | ✅ |
-| Seedance | ✅ | ✅ |
+| Kling 1.6/2.5 | ✅ | ✅ |
+| Minimax Hailuo 2.3 | ✅ | ✅ |
+| Seedance 1.0 | ✅ | ✅ |
+| Hunyuan Video | ✅ | ✅ |
+| Luma Ray 2 | ✅ | ✅ |
+| Pika 2.2 | ✅ | ✅ |
 
-## 🚀 安装
+### Audio Models (25 models)
 
-### 方式一：ComfyUI Manager（推荐）
+| Model | Type |
+|-------|------|
+| ElevenLabs V1/V2 | Text-to-Speech |
+| ElevenLabs Scribe | Speech-to-Text |
+| Fish Audio 1.5 | Text-to-Speech |
+| GPT-4o Realtime | Voice Chat |
+| MiniMax TTS | Text-to-Speech |
 
-1. 打开 ComfyUI Manager
-2. 搜索 `JieKou` 或 `接口`
-3. 点击安装
+## 🚀 Installation
 
-### 方式二：手动安装
+### Method 1: ComfyUI Manager (Recommended)
+
+1. Open ComfyUI Manager
+2. Search for `JieKou` or `接口`
+3. Click Install
+
+### Method 2: Manual Installation
 
 ```bash
 cd ComfyUI/custom_nodes
@@ -53,93 +82,111 @@ cd ComfyUI-JieKou-API
 pip install -r requirements.txt
 ```
 
-### 方式三：ZIP 安装
+### Method 3: ZIP Installation
 
-1. 下载 [最新版本](https://github.com/jiekouai/ComfyUI-JieKou-API)
-2. 解压到 `ComfyUI/custom_nodes/` 目录
-3. 运行 `pip install -r requirements.txt`
+1. Download the [latest release](https://github.com/jiekouai/ComfyUI-JieKou-API/releases)
+2. Extract to `ComfyUI/custom_nodes/`
+3. Run `pip install -r requirements.txt`
 
-## ⚙️ 配置
+## ⚙️ Configuration
 
-### 方式一：界面配置（推荐）
+### Option 1: UI Configuration (Recommended)
 
-1. 启动 ComfyUI
-2. 点击画布右上角的 **「⚙️ 接口 AI」**
-3. 输入您的 API Key
-4. 点击「保存」
+1. Start ComfyUI
+2. Click **"⚙️ JieKou AI Settings"** button in the top-right corner
+3. Enter your API Key
+4. Click "Save"
 
-### 方式二：配置文件
+### Option 2: Configuration File
 
 ```bash
 cd ComfyUI/custom_nodes/ComfyUI-JieKou-API
 cp config.ini.example config.ini
 ```
 
-编辑 `config.ini`，填入您的 API Key：
+Edit `config.ini` with your API Key:
 
 ```ini
 [AUTH]
 api_key = your-api-key-here
 ```
 
-### 获取 API Key
+### Getting an API Key
 
-访问 [接口 AI 平台](https://jiekou.ai) 注册并获取 API Key。
+Visit [JieKou AI Platform](https://jiekou.ai) to register and get your API Key.
 
-## 📖 使用说明
+## 📖 Usage Guide
 
-### 节点列表
+### Finding Nodes
 
-| 节点名称 | 功能 | 输入 | 输出 |
-|----------|------|------|------|
-| JieKou Text to Image | 文生图 | prompt | IMAGE, image_url |
-| JieKou Image to Image | 图生图 | image_url, prompt | IMAGE, image_url |
-| JieKou Image Upscale | 图像放大 | image_url | IMAGE, image_url |
-| JieKou Remove Background | 背景移除 | image_url | IMAGE, image_url |
-| JieKou Video Generation | 视频生成 | prompt, image_url(可选) | IMAGE(帧序列), video_url |
-| JieKou Test Connection | 测试连接 | - | status |
+In ComfyUI, right-click on the canvas and navigate to:
 
-### 基础工作流示例
+- **JieKou AI > Image > Text to Image** - For text-to-image models
+- **JieKou AI > Image > Edit** - For image editing models
+- **JieKou AI > Image > Tools** - For upscaling, background removal
+- **JieKou AI > Video > Text to Video** - For text-to-video models
+- **JieKou AI > Video > Image to Video** - For image-to-video models
+- **JieKou AI > Audio > Text to Speech** - For TTS models
 
-#### 文生图
+### Price Display
+
+Each node displays the estimated cost in the top-right corner (e.g., "$0.004/次"). The price updates automatically when you change parameters like resolution or duration.
+
+### Basic Workflow Examples
+
+#### Text-to-Image
 
 ```
-[JieKou Text to Image]
-  ├─ model: gpt-image-1
-  ├─ prompt: "一只可爱的猫咪"
+[JieKou AI > Image > Seedream 4.0]
+  ├─ prompt: "A cute cat in a garden"
+  ├─ aspect_ratio: "1:1"
   └─ save_to_disk: true
        │
        ▼
    [Preview Image]
 ```
 
-#### 图生视频
+#### Image-to-Video
 
 ```
-[Load Image] ──► [JieKou Video Generation]
-                   ├─ model: wan2.6_i2v
-                   ├─ image_url: (从上游获取)
-                   ├─ prompt: "让画面动起来"
+[Load Image] ──► [JieKou AI > Video > Wan 2.6 I2V]
+                   ├─ image_url: (connected from upstream)
+                   ├─ prompt: "Make the image come alive"
+                   ├─ duration: "5"
                    └─ save_to_disk: true
                         │
                         ▼
                    [Video Combine]
 ```
 
-## 🔗 链式调用
+### Chaining Nodes
 
-生图节点可输出 `image_url`，可以直接连接到下游节点的 `image_url` 输入：
+Image nodes output `image_url` which can be directly connected to downstream nodes:
 
 ```
-[Text to Image] ──► image_url ──► [Image to Image] ──► image_url ──► [Video Generation]
+[Text to Image] ──► image_url ──► [Image Edit] ──► image_url ──► [Video Generation]
 ```
 
-## 📄 许可证
+## ❓ FAQ
+
+**Q: Why is the price showing "$--"?**
+A: The price may be temporarily unavailable. Check your network connection or try again later.
+
+**Q: Can I use this plugin offline?**
+A: No, this plugin requires an internet connection to call JieKou AI APIs.
+
+**Q: How do I update the plugin?**
+A: Use ComfyUI Manager to update, or `git pull` if installed manually.
+
+**Q: Video generation is slow?**
+A: Video generation is an async task that may take 1-5 minutes depending on the model and parameters.
+
+## 📄 License
 
 [MIT License](LICENSE)
 
-## 🔗 相关链接
+## 🔗 Links
 
-- [接口 AI 平台](https://jiekou.ai)
-- [API 文档](https://docs.jiekou.ai/docs/models/reference-authentication)
-
+- [JieKou AI Platform](https://jiekou.ai)
+- [API Documentation](https://docs.jiekou.ai)
+- [GitHub Repository](https://github.com/jiekouai/ComfyUI-JieKou-API)

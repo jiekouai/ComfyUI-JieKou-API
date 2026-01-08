@@ -431,6 +431,17 @@ app.registerExtension({
     async setup() {
         injectStyles();
         
+        // T021: Initialize price display module
+        try {
+            await import("./price_display.js");
+            if (window.JieKouPriceDisplay) {
+                window.JieKouPriceDisplay.init();
+                console.log("[JieKou] Price display module initialized");
+            }
+        } catch (error) {
+            console.warn("[JieKou] Price display module not loaded:", error);
+        }
+        
         // Add floating settings button to canvas container
         const addSettingsButton = () => {
             // Find canvas container (new ComfyUI)
@@ -580,6 +591,35 @@ app.registerExtension({
                 dynamicWidgets.initializeNode(node);
             } catch (error) {
                 console.warn("[JieKou] Dynamic widgets not loaded:", error);
+            }
+            
+            // T023: Initialize price display for this node
+            try {
+                if (window.JieKouPriceDisplay) {
+                    // Update price when node is created
+                    setTimeout(() => {
+                        window.JieKouPriceDisplay.updateNodePrice(node);
+                    }, 100);
+                    
+                    // T024: Add widget change listeners for price updates
+                    if (node.widgets) {
+                        for (const widget of node.widgets) {
+                            const originalCallback = widget.callback;
+                            widget.callback = function(value, ...args) {
+                                // Call original callback if exists
+                                if (originalCallback) {
+                                    originalCallback.call(this, value, ...args);
+                                }
+                                // Update price after parameter change
+                                if (window.JieKouPriceDisplay) {
+                                    window.JieKouPriceDisplay.updateNodePrice(node);
+                                }
+                            };
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn("[JieKou] Price display not initialized:", error);
             }
         }
     }
