@@ -83,12 +83,6 @@ class JieKouVideoGeneration:
                 "model": (all_models, {
                     "default": default_model
                 }),
-                # Image input for I2V models: URL or base64 (positioned after model)
-                "image_url": ("STRING", {
-                    "default": "",
-                    "placeholder": "图生视频：输入图片 URL 或 base64（文生视频留空）",
-                    "dynamicPrompts": True  # 允许右键转换为输入槽
-                }),
                 "prompt": ("STRING", {
                     "default": "",
                     "multiline": True,
@@ -102,6 +96,14 @@ class JieKouVideoGeneration:
                 }),
             },
             "optional": {
+                # Image tensor input for I2V - can connect from Load Image or other image nodes
+                "image": ("IMAGE", {}),
+                # Image URL or base64 for I2V (higher priority if both provided)
+                "image_url": ("STRING", {
+                    "default": "",
+                    "placeholder": "图生视频：输入图片 URL 或 base64（优先使用）",
+                    "dynamicPrompts": True  # 允许右键转换为输入槽
+                }),
                 # Reference video URLs for Wan 2.6 V2V model
                 "reference_video_urls": ("STRING", {
                     "default": "",
@@ -121,9 +123,10 @@ class JieKouVideoGeneration:
     def generate_video(
         self,
         model: str,
-        image_url: str,
         prompt: str,
         save_to_disk: bool = True,
+        image: torch.Tensor = None,
+        image_url: str = "",
         reference_video_urls: str = "",
         _dynamic_params: str = "{}",
         **kwargs
@@ -133,9 +136,10 @@ class JieKouVideoGeneration:
         
         Args:
             model: Model ID to use
-            image_url: Input image for I2V models (URL or base64, leave empty for T2V)
             prompt: Text prompt
             save_to_disk: Whether to save video to output folder
+            image: Optional IMAGE tensor from connected node (will be converted to base64)
+            image_url: Optional image URL or base64 for I2V (higher priority if both provided)
             reference_video_urls: Optional reference video URLs for Wan 2.6 V2V (1-3 URLs, one per line)
             _dynamic_params: JSON string of dynamic parameters from JavaScript
             **kwargs: Model-specific parameters (dynamically provided by JavaScript, including end_image as URL string)
@@ -154,9 +158,41 @@ class JieKouVideoGeneration:
         # Merge dynamic params into kwargs
         kwargs.update(dynamic_params)
         
+        # Determine input image source: image_url has higher priority (if valid)
+        input_image_data = ""
+        image_source = ""
+        
+        # Check if image_url is a valid URL or base64 data
+        def is_valid_image_url(url: str) -> bool:
+            if not url or not isinstance(url, str):
+                return False
+            url = url.strip()
+            # Valid if it's a URL
+            if url.startswith("http://") or url.startswith("https://"):
+                return True
+            # Valid if it's base64 data (with or without data: prefix)
+            if url.startswith("data:image/"):
+                return True
+            # Valid if it looks like raw base64 (long string without spaces, starts with base64 chars)
+            if len(url) > 100 and " " not in url[:100]:
+                return True
+            return False
+        
+        if image_url and is_valid_image_url(image_url):
+            # Use image_url if provided and valid (higher priority)
+            input_image_data = image_url.strip()
+            image_source = "image_url"
+        elif image is not None:
+            # Convert tensor to base64 with data URL prefix
+            from ..utils.tensor_utils import tensor_to_base64
+            b64_data = tensor_to_base64(image, format="PNG")
+            input_image_data = f"data:image/png;base64,{b64_data}"
+            image_source = "image_tensor"
+        
         logger.info(f"[JieKou] ========== Video Generation ==========")
         logger.info(f"[JieKou] Model: {model}")
-        logger.info(f"[JieKou] Image URL: {image_url[:100] if image_url else 'None (T2V mode)'}...")
+        logger.info(f"[JieKou] Image source: {image_source if image_source else 'None (T2V mode)'}")
+        logger.info(f"[JieKou] Image data: {input_image_data[:100] if input_image_data else 'None'}...")
         logger.info(f"[JieKou] Prompt: {prompt[:50]}...")
         logger.info(f"[JieKou] Save to disk: {save_to_disk}")
         logger.info(f"[JieKou] Reference video URLs: {reference_video_urls[:100] if reference_video_urls else 'None'}...")
@@ -190,9 +226,9 @@ class JieKouVideoGeneration:
             
             # Check if this is a Wan 2.6 model (uses dedicated endpoint)
             if registry.is_wan26_model(model_id):
-                task_id = self._submit_wan26_task(api, registry, model_id, prompt, image_url, reference_video_urls, kwargs)
+                task_id = self._submit_wan26_task(api, registry, model_id, prompt, input_image_data, reference_video_urls, kwargs)
             else:
-                task_id = self._submit_unified_task(api, registry, model_id, prompt, image_url, kwargs)
+                task_id = self._submit_unified_task(api, registry, model_id, prompt, input_image_data, kwargs)
             
             logger.info(f"[JieKou] Task submitted: {task_id}")
             
@@ -263,10 +299,8 @@ class JieKouVideoGeneration:
             logger.error(f"[JieKou] Error: {e}")
             raise
     
-    def _submit_unified_task(self, api, registry, model: str, prompt: str, image_url: str, kwargs) -> str:
+    def _submit_unified_task(self, api, registry, model: str, prompt: str, input_image_data: str, kwargs) -> str:
         """Submit task using unified API (/v3/video/create)"""
-        from ..utils.tensor_utils import is_local_file_path, local_file_to_base64
-        
         # Get supported parameters for this model
         supported_params = set(registry.get_video_model_param_names(model))
         logger.info(f"[JieKou] Model {model} supports params: {supported_params}")
@@ -282,14 +316,9 @@ class JieKouVideoGeneration:
                 params[key] = value
         
         # Handle image input (only if model supports it)
-        if image_url and image_url.strip():
+        if input_image_data:
             if "image" in supported_params:
-                input_image_data = image_url.strip()
-                # Check if it's a local file path and convert to base64
-                if is_local_file_path(input_image_data):
-                    logger.info(f"[JieKou] Detected local file path, converting to base64...")
-                    input_image_data = local_file_to_base64(input_image_data)
-                logger.info(f"[JieKou] Using image_url: {input_image_data[:50]}...")
+                logger.info(f"[JieKou] Using image input: {input_image_data[:50]}...")
                 params["image"] = input_image_data
             else:
                 logger.warning(f"[JieKou] Model {model} does not support image input, ignoring...")
@@ -305,15 +334,13 @@ class JieKouVideoGeneration:
         
         return api.submit_video_task(model=model, **params)
     
-    def _submit_wan26_task(self, api, registry, model: str, prompt: str, image_url: str, reference_video_urls: str, kwargs) -> str:
+    def _submit_wan26_task(self, api, registry, model: str, prompt: str, input_image_data: str, reference_video_urls: str, kwargs) -> str:
         """
         Submit task using Wan 2.6 dedicated endpoint
         
         Wan 2.6 models use different payload structure:
         { input: {prompt, img_url, ...}, parameters: {seed, size, ...} }
         """
-        from ..utils.tensor_utils import is_local_file_path, local_file_to_base64
-        
         model_config = registry.get_model(model)
         endpoint = model_config.endpoint
         
@@ -350,14 +377,9 @@ class JieKouVideoGeneration:
                 parameters[actual_key] = value
         
         # Handle image input (Wan 2.6 uses img_url in input)
-        if image_url and image_url.strip():
+        if input_image_data:
             if "img_url" in input_param_names:
-                input_image_data = image_url.strip()
-                # Check if it's a local file path and convert to base64
-                if is_local_file_path(input_image_data):
-                    logger.info(f"[JieKou] Detected local file path, converting to base64...")
-                    input_image_data = local_file_to_base64(input_image_data)
-                logger.info(f"[JieKou] Using image_url for Wan 2.6 (img_url): {input_image_data[:50]}...")
+                logger.info(f"[JieKou] Using image input for Wan 2.6 (img_url): {input_image_data[:50]}...")
                 input_params["img_url"] = input_image_data
             else:
                 logger.warning(f"[JieKou] Model {model} does not support img_url input, ignoring...")

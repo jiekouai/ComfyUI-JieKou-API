@@ -61,12 +61,14 @@ pip install -r requirements.txt
 
 ## ⚙️ 配置
 
-### 方式一：界面配置（推荐）
+### 方式一：界面配置（首次配置推荐）
 
 1. 启动 ComfyUI
-2. 点击画布右上角的 **「⚙️ 接口 AI」**
-3. 输入您的 API Key
+2. 如果您尚未配置 API Key，画布右上角会显示 **「⚙️ 接口 AI 设置」** 按钮
+3. 点击按钮，输入您的 API Key
 4. 点击「保存」
+
+> **提示**：配置成功后，该按钮将不再显示，以避免遮挡 ComfyUI 的通知消息。
 
 ### 方式二：配置文件
 
@@ -80,6 +82,15 @@ cp config.ini.example config.ini
 ```ini
 [AUTH]
 api_key = your-api-key-here
+```
+
+### 修改 API Key
+
+如需修改已保存的 API Key，请直接编辑 `config.ini` 文件：
+
+```bash
+cd ComfyUI/custom_nodes/ComfyUI-JieKou-API
+# 用您喜欢的编辑器修改 config.ini
 ```
 
 ### 获取 API Key

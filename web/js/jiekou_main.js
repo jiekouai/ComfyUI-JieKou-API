@@ -374,6 +374,13 @@ class JiekouSettingsModal {
             await this.saveKey(apiKey);
             this.setStatus("success", "✓ API Key 保存成功");
             
+            // Remove the settings button since API key is now configured
+            const settingsBtn = document.getElementById("jiekou-settings-btn");
+            if (settingsBtn) {
+                settingsBtn.remove();
+                console.log("[JieKou] Settings button removed after successful configuration");
+            }
+            
             // Close modal after short delay
             setTimeout(() => this.close(), 1500);
         } catch (error) {
@@ -430,6 +437,18 @@ app.registerExtension({
     
     async setup() {
         injectStyles();
+        
+        // Check if API key is already configured
+        const checkApiKeyConfigured = async () => {
+            try {
+                const response = await fetch("/jiekou/config");
+                const data = await response.json();
+                return data.configured === true;
+            } catch (error) {
+                console.warn("[JieKou] Failed to check API key status:", error);
+                return false;
+            }
+        };
         
         // Add floating settings button to canvas container
         const addSettingsButton = () => {
@@ -493,34 +512,40 @@ app.registerExtension({
             return false;
         };
         
-        // Try to add button now, retry after delay if not ready
-        if (!addSettingsButton()) {
-            setTimeout(() => {
-                if (!addSettingsButton()) {
-                    // Final fallback: Add to body with fixed position
-                    const floatingBtn = document.createElement("button");
-                    floatingBtn.id = "jiekou-settings-btn";
-                    floatingBtn.textContent = "⚙️ 接口 AI 设置";
-                    floatingBtn.onclick = () => settingsModal.show();
-                    floatingBtn.style.cssText = `
-                        position: fixed;
-                        top: 10px;
-                        right: 10px;
-                        z-index: 99999;
-                        background: linear-gradient(135deg, #5b7bd5, #9b59b6);
-                        border: none;
-                        padding: 10px 16px;
-                        border-radius: 6px;
-                        color: white;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: 500;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                    `;
-                    document.body.appendChild(floatingBtn);
-                    console.log("[JieKou] Settings button added to body (fallback)");
-                }
-            }, 2000);
+        // Only show settings button if API key is NOT configured
+        const isConfigured = await checkApiKeyConfigured();
+        if (isConfigured) {
+            console.log("[JieKou] API key already configured, skipping settings button");
+        } else {
+            // Try to add button now, retry after delay if not ready
+            if (!addSettingsButton()) {
+                setTimeout(() => {
+                    if (!addSettingsButton()) {
+                        // Final fallback: Add to body with fixed position
+                        const floatingBtn = document.createElement("button");
+                        floatingBtn.id = "jiekou-settings-btn";
+                        floatingBtn.textContent = "⚙️ 接口 AI 设置";
+                        floatingBtn.onclick = () => settingsModal.show();
+                        floatingBtn.style.cssText = `
+                            position: fixed;
+                            top: 10px;
+                            right: 10px;
+                            z-index: 99999;
+                            background: linear-gradient(135deg, #5b7bd5, #9b59b6);
+                            border: none;
+                            padding: 10px 16px;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                            font-size: 14px;
+                            font-weight: 500;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                        `;
+                        document.body.appendChild(floatingBtn);
+                        console.log("[JieKou] Settings button added to body (fallback)");
+                    }
+                }, 2000);
+            }
         }
         
         // Before queueing prompt, serialize dynamic widget values to _dynamic_params
