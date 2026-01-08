@@ -32,6 +32,7 @@ class ModelParameter:
     enum: Optional[list] = None
     minimum: Optional[float] = None
     maximum: Optional[float] = None
+    children: Optional[list["ModelParameter"]] = None  # For nested object parameters
 
 
 @dataclass
@@ -40,13 +41,22 @@ class ModelConfig:
     id: str
     name: str
     description: str
-    category: str
+    categories: list[str]  # Support multiple categories (e.g., ["image_t2i", "image_edit"])
     endpoint: str
     is_async: bool
     response_type: str
     parameters: list[ModelParameter]
     product_ids: list[str]
     valid_combinations: list[dict]
+    
+    @property
+    def category(self) -> str:
+        """Get primary category (first in the list) for backward compatibility"""
+        return self.categories[0] if self.categories else ""
+    
+    def has_category(self, category: str) -> bool:
+        """Check if model belongs to a specific category"""
+        return category in self.categories
     
     @property
     def display_name(self) -> str:
@@ -63,10 +73,20 @@ class ModelConfig:
     
     @property
     def category_path(self) -> str:
-        """Get ComfyUI category path for menu organization"""
+        """Get ComfyUI category path for menu organization (uses primary category)"""
+        return self.get_category_path(self.category)
+    
+    @property
+    def category_paths(self) -> list[str]:
+        """Get all ComfyUI category paths for menu organization"""
+        return [self.get_category_path(cat) for cat in self.categories]
+    
+    @staticmethod
+    def get_category_path(category: str) -> str:
+        """Convert category to ComfyUI menu path"""
         category_map = {
             "image_t2i": "JieKou AI/Image/Text to Image",
-            "image_edit": "JieKou AI/Image/Edit",
+            "image_edit": "JieKou AI/Image/Image to Image",
             "image_tool": "JieKou AI/Image/Tools",
             "video_t2v": "JieKou AI/Video/Text to Video",
             "video_i2v": "JieKou AI/Video/Image to Video",
@@ -74,7 +94,7 @@ class ModelConfig:
             "audio_tts": "JieKou AI/Audio/Text to Speech",
             "audio_asr": "JieKou AI/Audio/Speech to Text",
         }
-        return category_map.get(self.category, "JieKou AI/Other")
+        return category_map.get(category, "JieKou AI/Other")
     
     def get_product_id_for_params(self, params: dict) -> Optional[str]:
         """
@@ -149,27 +169,42 @@ class ModelConfigLoader:
         self._models = {}
         self._models_by_category = {}
         
+        def parse_parameter(param_data: dict) -> ModelParameter:
+            """Parse a single parameter, including nested children"""
+            children = None
+            if param_data.get("children"):
+                children = [parse_parameter(child) for child in param_data["children"]]
+            
+            return ModelParameter(
+                name=param_data.get("name", ""),
+                type=param_data.get("type", "string"),
+                description=param_data.get("description", ""),
+                required=param_data.get("required", False),
+                default=param_data.get("default"),
+                enum=param_data.get("enum"),
+                minimum=param_data.get("minimum"),
+                maximum=param_data.get("maximum"),
+                children=children,
+            )
+        
         for model_data in config.get("models", []):
             # Parse parameters
             params = []
             for param_data in model_data.get("parameters", []):
-                params.append(ModelParameter(
-                    name=param_data.get("name", ""),
-                    type=param_data.get("type", "string"),
-                    description=param_data.get("description", ""),
-                    required=param_data.get("required", False),
-                    default=param_data.get("default"),
-                    enum=param_data.get("enum"),
-                    minimum=param_data.get("minimum"),
-                    maximum=param_data.get("maximum"),
-                ))
+                params.append(parse_parameter(param_data))
+            
+            # Handle categories - support both old "category" (string) and new "categories" (list)
+            categories = model_data.get("categories", [])
+            if not categories and model_data.get("category"):
+                # Backward compatibility: convert single category to list
+                categories = [model_data.get("category")]
             
             # Create model config
             model = ModelConfig(
                 id=model_data.get("id", ""),
                 name=model_data.get("name", ""),
                 description=model_data.get("description", ""),
-                category=model_data.get("category", ""),
+                categories=categories,
                 endpoint=model_data.get("endpoint", ""),
                 is_async=model_data.get("is_async", True),
                 response_type=model_data.get("response_type", "image_urls"),
@@ -180,10 +215,11 @@ class ModelConfigLoader:
             
             self._models[model.id] = model
             
-            # Group by category
-            if model.category not in self._models_by_category:
-                self._models_by_category[model.category] = []
-            self._models_by_category[model.category].append(model)
+            # Group by all categories (model appears in each category it belongs to)
+            for cat in model.categories:
+                if cat not in self._models_by_category:
+                    self._models_by_category[cat] = []
+                self._models_by_category[cat].append(model)
         
         logger.info(f"[JieKou] Parsed {len(self._models)} models across {len(self._models_by_category)} categories")
         return self._models

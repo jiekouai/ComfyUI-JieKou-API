@@ -206,6 +206,23 @@ const styles = `
 .litemenu-entry.jiekou-model-item:hover .jiekou-model-desc {
     color: #aaa;
 }
+
+/* Price Badge Placeholder */
+.jiekou-price-badge {
+    position: absolute;
+    top: 2px;
+    right: 8px;
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    color: white;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 100;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
 `;
 
 // ===== Inject Styles =====
@@ -316,6 +333,7 @@ class JiekouSettingsModal {
     
     async testConnection() {
         const apiKey = this.modal.querySelector("#jiekou-api-key").value;
+        const testBtn = this.modal.querySelector("#jiekou-test");
         
         if (!apiKey) {
             this.setStatus("error", "请输入 API Key");
@@ -323,6 +341,8 @@ class JiekouSettingsModal {
         }
         
         this.setStatus("loading", "正在验证 API Key...");
+        testBtn.textContent = "验证中...";
+        testBtn.disabled = true;
         
         try {
             // First save the key temporarily
@@ -334,11 +354,17 @@ class JiekouSettingsModal {
             
             if (data.success) {
                 this.setStatus("success", "✓ API Key 验证成功！");
+                testBtn.textContent = "连接成功 ✅";
+                testBtn.style.background = "#1e4d2e";
             } else {
                 this.setStatus("error", data.error || "API Key 验证失败");
+                testBtn.textContent = "测试连接";
+                testBtn.disabled = false;
             }
         } catch (error) {
             this.setStatus("error", error.message || "连接测试失败");
+            testBtn.textContent = "测试连接";
+            testBtn.disabled = false;
         }
     }
     
@@ -373,6 +399,13 @@ class JiekouSettingsModal {
         try {
             await this.saveKey(apiKey);
             this.setStatus("success", "✓ API Key 保存成功");
+            
+            // Remove the settings button since API key is now configured
+            const settingsBtn = document.getElementById("jiekou-settings-btn");
+            if (settingsBtn) {
+                settingsBtn.remove();
+                console.log("[JieKou] Settings button removed after successful configuration");
+            }
             
             // Close modal after short delay
             setTimeout(() => this.close(), 1500);
@@ -425,22 +458,39 @@ const settingsModal = new JiekouSettingsModal();
 const progressHandler = new VideoProgressHandler();
 
 // ===== Register Extension =====
+// TODO: Set to true to enable price display feature (v1.2)
+const ENABLE_PRICE_DISPLAY = false;
+
 app.registerExtension({
     name: EXTENSION_NAME,
     
     async setup() {
         injectStyles();
         
-        // T021: Initialize price display module
-        try {
-            await import("./price_display.js");
-            if (window.JieKouPriceDisplay) {
-                window.JieKouPriceDisplay.init();
-                console.log("[JieKou] Price display module initialized");
+        // T021: Initialize price display module (disabled for now)
+        if (ENABLE_PRICE_DISPLAY) {
+            try {
+                await import("./price_display.js");
+                if (window.JieKouPriceDisplay) {
+                    window.JieKouPriceDisplay.init();
+                    console.log("[JieKou] Price display module initialized");
+                }
+            } catch (error) {
+                console.warn("[JieKou] Price display module not loaded:", error);
             }
-        } catch (error) {
-            console.warn("[JieKou] Price display module not loaded:", error);
         }
+        
+        // Check if API key is already configured
+        const checkApiKeyConfigured = async () => {
+            try {
+                const response = await fetch("/jiekou/config");
+                const data = await response.json();
+                return data.configured === true;
+            } catch (error) {
+                console.warn("[JieKou] Failed to check API key status:", error);
+                return false;
+            }
+        };
         
         // Add floating settings button to canvas container
         const addSettingsButton = () => {
@@ -504,34 +554,40 @@ app.registerExtension({
             return false;
         };
         
-        // Try to add button now, retry after delay if not ready
-        if (!addSettingsButton()) {
-            setTimeout(() => {
-                if (!addSettingsButton()) {
-                    // Final fallback: Add to body with fixed position
-                    const floatingBtn = document.createElement("button");
-                    floatingBtn.id = "jiekou-settings-btn";
-                    floatingBtn.textContent = "⚙️ 接口 AI 设置";
-                    floatingBtn.onclick = () => settingsModal.show();
-                    floatingBtn.style.cssText = `
-                        position: fixed;
-                        top: 10px;
-                        right: 10px;
-                        z-index: 99999;
-                        background: linear-gradient(135deg, #5b7bd5, #9b59b6);
-                        border: none;
-                        padding: 10px 16px;
-                        border-radius: 6px;
-                        color: white;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: 500;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                    `;
-                    document.body.appendChild(floatingBtn);
-                    console.log("[JieKou] Settings button added to body (fallback)");
-                }
-            }, 2000);
+        // Only show settings button if API key is NOT configured
+        const isConfigured = await checkApiKeyConfigured();
+        if (isConfigured) {
+            console.log("[JieKou] API key already configured, skipping settings button");
+        } else {
+            // Try to add button now, retry after delay if not ready
+            if (!addSettingsButton()) {
+                setTimeout(() => {
+                    if (!addSettingsButton()) {
+                        // Final fallback: Add to body with fixed position
+                        const floatingBtn = document.createElement("button");
+                        floatingBtn.id = "jiekou-settings-btn";
+                        floatingBtn.textContent = "⚙️ 接口 AI 设置";
+                        floatingBtn.onclick = () => settingsModal.show();
+                        floatingBtn.style.cssText = `
+                            position: fixed;
+                            top: 10px;
+                            right: 10px;
+                            z-index: 99999;
+                            background: linear-gradient(135deg, #5b7bd5, #9b59b6);
+                            border: none;
+                            padding: 10px 16px;
+                            border-radius: 6px;
+                            color: white;
+                            cursor: pointer;
+                            font-size: 14px;
+                            font-weight: 500;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                        `;
+                        document.body.appendChild(floatingBtn);
+                        console.log("[JieKou] Settings button added to body (fallback)");
+                    }
+                }, 2000);
+            }
         }
         
         // Before queueing prompt, serialize dynamic widget values to _dynamic_params
@@ -594,36 +650,84 @@ app.registerExtension({
             }
             
             // T023: Initialize price display for this node
-            try {
-                if (window.JieKouPriceDisplay) {
-                    // Update price when node is created
-                    setTimeout(() => {
-                        window.JieKouPriceDisplay.updateNodePrice(node);
-                    }, 100);
-                    
-                    // T024: Add widget change listeners for price updates
-                    if (node.widgets) {
-                        for (const widget of node.widgets) {
-                            const originalCallback = widget.callback;
-                            widget.callback = function(value, ...args) {
-                                // Call original callback if exists
-                                if (originalCallback) {
-                                    originalCallback.call(this, value, ...args);
-                                }
-                                // Update price after parameter change
-                                if (window.JieKouPriceDisplay) {
-                                    window.JieKouPriceDisplay.updateNodePrice(node);
-                                }
-                            };
+            if (ENABLE_PRICE_DISPLAY) {
+                try {
+                    if (window.JieKouPriceDisplay) {
+                        // Update price when node is created
+                        setTimeout(() => {
+                            window.JieKouPriceDisplay.updateNodePrice(node);
+                        }, 100);
+                        
+                        // T024: Add widget change listeners for price updates
+                        if (node.widgets) {
+                            for (const widget of node.widgets) {
+                                const originalCallback = widget.callback;
+                                widget.callback = function(value, ...args) {
+                                    // Call original callback if exists
+                                    if (originalCallback) {
+                                        originalCallback.call(this, value, ...args);
+                                    }
+                                    // Update price after parameter change
+                                    if (window.JieKouPriceDisplay) {
+                                        window.JieKouPriceDisplay.updateNodePrice(node);
+                                    }
+                                };
+                            }
                         }
                     }
+                } catch (error) {
+                    console.warn("[JieKou] Price display not initialized:", error);
                 }
-            } catch (error) {
-                console.warn("[JieKou] Price display not initialized:", error);
+            } else {
+                // Show placeholder badge when price display is disabled
+                addPricePlaceholder(node);
             }
         }
     }
 });
+
+/**
+ * Add price placeholder badge to a node (drawn on Canvas)
+ * @param {Object} node - ComfyUI node
+ */
+function addPricePlaceholder(node) {
+    // Hook into node's onDrawForeground to draw price badge on Canvas
+    const originalDrawForeground = node.onDrawForeground;
+    node.onDrawForeground = function(ctx) {
+        // Call original if exists
+        if (originalDrawForeground) {
+            originalDrawForeground.call(this, ctx);
+        }
+        
+        // Draw price badge in top-right corner
+        const text = "价格 (敬请期待)";
+        const padding = 6;
+        const fontSize = 11;
+        
+        ctx.save();
+        
+        // Measure text
+        ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        const textWidth = ctx.measureText(text).width;
+        const badgeWidth = textWidth + padding * 2;
+        const badgeHeight = fontSize + (padding / 2);
+        
+        // Position: top-right of node
+        const x = this.size[0] - badgeWidth - 8;
+        const y = -badgeHeight - 8;
+        
+        // Draw text
+        ctx.fillStyle = "#9a9a9a";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, x + padding, y + badgeHeight / 2);
+        
+        ctx.restore();
+    };
+    
+    // Trigger redraw
+    node.setDirtyCanvas(true, true);
+}
 
 export { settingsModal, progressHandler };
 
