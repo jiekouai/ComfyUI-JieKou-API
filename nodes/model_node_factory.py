@@ -10,6 +10,7 @@ Features:
 - Parameter-to-ComfyUI-type conversion
 - Category path assignment for menu organization
 - Proper return type handling (IMAGE for images, frames for video)
+- Size presets for image generation models
 """
 
 import torch
@@ -17,11 +18,114 @@ import logging
 import os
 import time
 import json
+import re
 import numpy as np
 from PIL import Image
 from typing import Any, Optional
 
 logger = logging.getLogger("[JieKou]")
+
+
+# ===== Size Presets Configuration =====
+
+# Size presets for different dimension ranges
+# Each preset: (display_name, width, height)
+SIZE_PRESETS_256_1536 = [
+    ("1:1 方形 (1024×1024)", 1024, 1024),
+    ("16:9 横向 (1344×768)", 1344, 768),
+    ("9:16 竖向 (768×1344)", 768, 1344),
+    ("4:3 横向 (1024×768)", 1024, 768),
+    ("3:4 竖向 (768×1024)", 768, 1024),
+    ("3:2 横向 (1152×768)", 1152, 768),
+    ("2:3 竖向 (768×1152)", 768, 1152),
+    ("21:9 超宽 (1536×640)", 1536, 640),
+    ("自定义", 0, 0),
+]
+
+SIZE_PRESETS_500_4096 = [
+    ("1:1 方形 (1024×1024)", 1024, 1024),
+    ("1:1 方形 (2048×2048)", 2048, 2048),
+    ("16:9 横向 (1920×1080)", 1920, 1080),
+    ("9:16 竖向 (1080×1920)", 1080, 1920),
+    ("4:3 横向 (1600×1200)", 1600, 1200),
+    ("3:4 竖向 (1200×1600)", 1200, 1600),
+    ("3:2 横向 (1800×1200)", 1800, 1200),
+    ("2:3 竖向 (1200×1800)", 1200, 1800),
+    ("自定义", 0, 0),
+]
+
+# Seedream 4.5: total pixels 3.6M~16.7M, min ~1920x1920
+SIZE_PRESETS_SEEDREAM45 = [
+    ("1:1 方形 (2048×2048)", 2048, 2048),
+    ("1:1 方形 (3072×3072)", 3072, 3072),
+    ("16:9 横向 (2560×1440)", 2560, 1440),
+    ("9:16 竖向 (1440×2560)", 1440, 2560),
+    ("16:9 横向 (3840×2160)", 3840, 2160),
+    ("9:16 竖向 (2160×3840)", 2160, 3840),
+    ("4:3 横向 (2400×1800)", 2400, 1800),
+    ("3:4 竖向 (1800×2400)", 1800, 2400),
+    ("自定义", 0, 0),
+]
+
+# Models that need size presets and their corresponding preset list
+MODELS_WITH_SIZE_PRESETS = {
+    # Models with 256~1536 range (size string format like "1024*1024")
+    "flux_1_kontext_dev": ("SIZE_PRESETS_256_1536", "size", "*"),
+    "flux_2_dev": ("SIZE_PRESETS_256_1536", "size", "*"),
+    "flux_2_flex": ("SIZE_PRESETS_256_1536", "size", "*"),
+    "flux_2_pro": ("SIZE_PRESETS_256_1536", "size", "*"),
+    "hunyuan_image_3": ("SIZE_PRESETS_256_1536", "size", "*"),
+    "qwen_text_to_image": ("SIZE_PRESETS_256_1536", "size", "*"),
+    "z_image_turbo": ("SIZE_PRESETS_256_1536", "size", "*"),
+    "z_image_turbo_lora": ("SIZE_PRESETS_256_1536", "size", "*"),
+    # Models with 500~4096 range (width/height separate params)
+    "mj_inpaint": ("SIZE_PRESETS_500_4096", "width_height", None),
+    # Seedream 4.5 special range (size string format like "2048x2048")
+    "seedream_4_5": ("SIZE_PRESETS_SEEDREAM45", "size", "x"),
+}
+
+def get_size_presets(model_id: str) -> tuple:
+    """
+    Get size presets configuration for a model.
+    
+    Returns:
+        tuple: (presets_list, param_type, separator) or (None, None, None) if no presets
+        - presets_list: List of (display_name, width, height) tuples
+        - param_type: "size" for single size param, "width_height" for separate params
+        - separator: "*" or "x" for size string format
+    """
+    config = MODELS_WITH_SIZE_PRESETS.get(model_id)
+    if not config:
+        return None, None, None
+    
+    preset_name, param_type, separator = config
+    presets = {
+        "SIZE_PRESETS_256_1536": SIZE_PRESETS_256_1536,
+        "SIZE_PRESETS_500_4096": SIZE_PRESETS_500_4096,
+        "SIZE_PRESETS_SEEDREAM45": SIZE_PRESETS_SEEDREAM45,
+    }.get(preset_name)
+    
+    return presets, param_type, separator
+
+
+def parse_size_preset(preset_value: str) -> tuple:
+    """
+    Parse a size preset string to get width and height.
+    
+    Args:
+        preset_value: Preset string like "1:1 方形 (1024×1024)" or "自定义"
+        
+    Returns:
+        tuple: (width, height) or (0, 0) for custom
+    """
+    if preset_value == "自定义":
+        return 0, 0
+    
+    # Extract dimensions from preset string like "1:1 方形 (1024×1024)"
+    match = re.search(r'\((\d+)[×x](\d+)\)', preset_value)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    return 0, 0
 
 
 # ===== T009: Parameter Type Converters =====
@@ -235,6 +339,12 @@ def build_input_types(model_config: dict, categories: list) -> dict:
     required = {}
     optional = {}
     
+    model_id = model_config.get("id", "")
+    
+    # Check if this model uses size presets
+    size_presets, preset_param_type, _ = get_size_presets(model_id)
+    uses_size_presets = size_presets is not None
+    
     # Standard inputs based on categories
     is_image_model = any(cat.startswith("image_") for cat in categories)
     is_video_model = any(cat.startswith("video_") for cat in categories)
@@ -262,6 +372,36 @@ def build_input_types(model_config: dict, categories: list) -> dict:
             "dynamicPrompts": True
         })
     
+    # Add size preset dropdown if this model uses presets
+    if uses_size_presets:
+        preset_names = [p[0] for p in size_presets]
+        optional["size_preset"] = (preset_names, {"default": preset_names[0]})
+        
+        # Add custom width/height inputs (shown when "自定义" is selected)
+        # These will be used by frontend JS to show/hide dynamically
+        if preset_param_type == "width_height":
+            # For models with separate width/height params
+            optional["custom_width"] = ("INT", {
+                "default": 1024,
+                "min": 256,
+                "max": 4096,
+                "step": 64,
+                "tooltip": "自定义宽度（选择'自定义'时生效）"
+            })
+            optional["custom_height"] = ("INT", {
+                "default": 1024,
+                "min": 256,
+                "max": 4096,
+                "step": 64,
+                "tooltip": "自定义高度（选择'自定义'时生效）"
+            })
+        else:
+            # For models with size string param
+            optional["custom_size"] = ("STRING", {
+                "default": "1024*1024",
+                "tooltip": "自定义尺寸（选择'自定义'时生效），格式：宽*高 或 宽x高"
+            })
+    
     # Process model parameters
     for param_data in model_config.get("parameters", []):
         name = param_data.get("name", "")
@@ -273,6 +413,10 @@ def build_input_types(model_config: dict, categories: list) -> dict:
         if name in skip_params:
             continue
         
+        # Skip size/width/height params if using presets
+        if uses_size_presets and name in ("size", "width", "height"):
+            continue
+        
         # Handle object type parameters with children - flatten the children as inputs
         if param_type == "object" and param_data.get("children"):
             for child in param_data.get("children", []):
@@ -281,6 +425,10 @@ def build_input_types(model_config: dict, categories: list) -> dict:
                 
                 # Skip child params that are handled separately
                 if child_name in skip_params:
+                    continue
+                
+                # Skip size/width/height in children if using presets
+                if uses_size_presets and child_name in ("size", "width", "height"):
                     continue
                 
                 type_spec, options = param_to_comfyui_type(child)
@@ -364,7 +512,9 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
     # Create the node class dynamically
     class_name = f"JieKou{model_id.replace('-', '_').replace('.', '_').title().replace('_', '')}"
     
-    def generate(self, save_to_disk: bool = True, image: torch.Tensor = None, image_url: str = "", **kwargs):
+    def generate(self, save_to_disk: bool = True, image: torch.Tensor = None, image_url: str = "", 
+                 size_preset: str = None, custom_width: int = None, custom_height: int = None, 
+                 custom_size: str = None, **kwargs):
         """Generate image using this model"""
         from ..utils.api_client import JiekouAPI, JiekouAPIError
         from ..utils.tensor_utils import url_to_tensor, base64_to_tensor, tensor_to_base64
@@ -404,6 +554,34 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
             
             # Build request data
             data = {}
+            
+            # Handle size presets
+            size_presets_config, preset_param_type, separator = get_size_presets(model_id)
+            if size_presets_config and size_preset:
+                width, height = parse_size_preset(size_preset)
+                
+                if width == 0 and height == 0:
+                    # Custom size selected
+                    if preset_param_type == "width_height":
+                        # Use custom_width and custom_height
+                        if custom_width and custom_height:
+                            data["width"] = custom_width
+                            data["height"] = custom_height
+                    else:
+                        # Use custom_size string
+                        if custom_size:
+                            data["size"] = custom_size
+                else:
+                    # Preset selected
+                    if preset_param_type == "width_height":
+                        data["width"] = width
+                        data["height"] = height
+                    else:
+                        # Format size string with correct separator
+                        data["size"] = f"{width}{separator}{height}"
+                
+                size_info = data.get('size') or f"{data.get('width')}x{data.get('height')}"
+                logger.info(f"[JieKou] Size preset: {size_preset} -> {size_info}")
             
             # Add image for edit models
             if input_image_data:

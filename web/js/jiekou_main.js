@@ -649,6 +649,9 @@ app.registerExtension({
                 console.warn("[JieKou] Dynamic widgets not loaded:", error);
             }
             
+            // Setup size preset dynamic visibility
+            setupSizePresetVisibility(node);
+            
             // T023: Initialize price display for this node
             if (ENABLE_PRICE_DISPLAY) {
                 try {
@@ -685,6 +688,61 @@ app.registerExtension({
         }
     }
 });
+
+/**
+ * Setup size preset visibility logic
+ * Shows/hides custom size inputs based on size_preset selection
+ * @param {Object} node - ComfyUI node
+ */
+function setupSizePresetVisibility(node) {
+    const sizePresetWidget = node.widgets?.find(w => w.name === "size_preset");
+    if (!sizePresetWidget) return;
+    
+    // Find custom size widgets
+    const customWidgets = [
+        node.widgets?.find(w => w.name === "custom_width"),
+        node.widgets?.find(w => w.name === "custom_height"),
+        node.widgets?.find(w => w.name === "custom_size"),
+    ].filter(Boolean);
+    
+    if (customWidgets.length === 0) return;
+    
+    // Function to update visibility
+    const updateCustomVisibility = (value) => {
+        const isCustom = value === "自定义";
+        for (const widget of customWidgets) {
+            // Use computeSize to hide/show widget
+            if (isCustom) {
+                // Show widget
+                delete widget._jiekouHidden;
+                widget.computeSize = undefined; // Reset to default
+            } else {
+                // Hide widget
+                widget._jiekouHidden = true;
+                widget.computeSize = () => [0, -4];
+            }
+        }
+        // Resize node and redraw
+        node.setSize([node.size[0], node.computeSize()[1]]);
+        node.setDirtyCanvas(true, true);
+    };
+    
+    // Set initial visibility (default is first preset, not custom)
+    updateCustomVisibility(sizePresetWidget.value);
+    
+    // Hook callback for changes
+    const originalCallback = sizePresetWidget.callback;
+    sizePresetWidget.callback = function(value, ...args) {
+        // Call original if exists
+        if (originalCallback) {
+            originalCallback.call(this, value, ...args);
+        }
+        // Update visibility
+        updateCustomVisibility(value);
+    };
+    
+    console.log("[JieKou] Size preset visibility setup complete");
+}
 
 /**
  * Add price placeholder badge to a node (drawn on Canvas)
