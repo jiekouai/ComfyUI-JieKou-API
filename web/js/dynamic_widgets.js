@@ -52,6 +52,9 @@ const schemaCache = new Map();
 // Cache for model info: id -> { name, description }
 const modelInfoCache = new Map();
 
+// T027: Cache for model configs (from /jiekou/models with valid_combinations)
+let fullModelConfigsCache = null;
+
 /**
  * Fetch model list and populate info cache
  */
@@ -466,5 +469,148 @@ export async function initializeNode(node) {
 export function refreshModels() {
     schemaCache.clear();
     modelInfoCache.clear();
+    fullModelConfigsCache = null;
     console.log("[JieKou] Cache cleared");
 }
+
+// ===== T027: Parameter Dynamic Linkage =====
+
+/**
+ * Fetch full model configs from /jiekou/models
+ * These include valid_combinations for dynamic parameter linkage
+ */
+async function fetchFullModelConfigs() {
+    if (fullModelConfigsCache) return fullModelConfigsCache;
+    
+    try {
+        const response = await fetch("/jiekou/models");
+        const data = await response.json();
+        
+        fullModelConfigsCache = {};
+        for (const model of data.models || []) {
+            fullModelConfigsCache[model.id] = model;
+        }
+        
+        console.log("[JieKou] Loaded full model configs:", Object.keys(fullModelConfigsCache).length);
+        return fullModelConfigsCache;
+    } catch (error) {
+        console.error("[JieKou] Failed to load full model configs:", error);
+        return {};
+    }
+}
+
+/**
+ * Get valid options for a parameter based on current selections and valid_combinations
+ * @param {Object} modelConfig - Model configuration with valid_combinations
+ * @param {string} paramName - Parameter to get options for
+ * @param {Object} currentParams - Current parameter selections
+ * @returns {string[]|null} Valid options, or null if no filtering needed
+ */
+function getValidOptionsForParam(modelConfig, paramName, currentParams) {
+    const validCombinations = modelConfig?.valid_combinations || [];
+    
+    if (validCombinations.length === 0) {
+        return null; // No filtering needed
+    }
+    
+    // Find all valid values for this param given current selections
+    const validValues = new Set();
+    
+    for (const combo of validCombinations) {
+        const comboParams = combo.params || {};
+        
+        // Check if this combo is compatible with current selections (excluding paramName)
+        let isCompatible = true;
+        for (const [key, value] of Object.entries(currentParams)) {
+            if (key === paramName) continue; // Skip the param we're checking
+            if (comboParams[key] !== undefined && comboParams[key] !== value) {
+                isCompatible = false;
+                break;
+            }
+        }
+        
+        if (isCompatible && comboParams[paramName] !== undefined) {
+            validValues.add(comboParams[paramName]);
+        }
+    }
+    
+    if (validValues.size === 0) {
+        return null; // No filtering or no valid combinations
+    }
+    
+    return Array.from(validValues);
+}
+
+/**
+ * Apply dynamic linkage to widgets based on valid_combinations
+ * @param {Object} node - ComfyUI node
+ * @param {Object} modelConfig - Model configuration
+ */
+function applyDynamicLinkage(node, modelConfig) {
+    if (!modelConfig?.valid_combinations?.length) return;
+    
+    // Find widgets that are part of valid_combinations
+    const linkedParams = new Set();
+    for (const combo of modelConfig.valid_combinations) {
+        for (const key of Object.keys(combo.params || {})) {
+            linkedParams.add(key);
+        }
+    }
+    
+    // Add change callbacks to update other widgets
+    for (const widget of node.widgets || []) {
+        if (!linkedParams.has(widget.name)) continue;
+        
+        const originalCallback = widget.callback;
+        widget.callback = function(value, ...args) {
+            // Call original
+            if (originalCallback) {
+                originalCallback.call(this, value, ...args);
+            }
+            
+            // Get current params
+            const currentParams = {};
+            for (const w of node.widgets || []) {
+                if (w.name && w.value !== undefined) {
+                    currentParams[w.name] = w.value;
+                }
+            }
+            
+            // Update other linked widgets
+            for (const otherWidget of node.widgets || []) {
+                if (otherWidget.name === widget.name) continue;
+                if (!linkedParams.has(otherWidget.name)) continue;
+                if (!otherWidget.options?.values) continue;
+                
+                const validOptions = getValidOptionsForParam(
+                    modelConfig, 
+                    otherWidget.name, 
+                    currentParams
+                );
+                
+                if (validOptions && validOptions.length > 0) {
+                    // Store original values for reference
+                    if (!otherWidget._jiekouOriginalValues) {
+                        otherWidget._jiekouOriginalValues = [...otherWidget.options.values];
+                    }
+                    
+                    // Filter to valid options
+                    otherWidget.options.values = validOptions;
+                    
+                    // If current value is not valid, reset to first valid
+                    if (!validOptions.includes(otherWidget.value)) {
+                        otherWidget.value = validOptions[0];
+                    }
+                }
+            }
+            
+            // Redraw node
+            node.setDirtyCanvas(true, true);
+        };
+    }
+    
+    console.log("[JieKou] Applied dynamic linkage for params:", Array.from(linkedParams));
+}
+
+// Export for external use
+export { fetchFullModelConfigs, getValidOptionsForParam, applyDynamicLinkage };

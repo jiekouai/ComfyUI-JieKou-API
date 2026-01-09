@@ -639,6 +639,68 @@ class JiekouAPI:
             expect_json=False
         )
     
+    # ===== Model-Specific Endpoint Requests =====
+    def call_model_endpoint(
+        self,
+        endpoint: str,
+        data: dict,
+        is_async: bool = True,
+        timeout: int = None
+    ) -> dict:
+        """
+        Call a model-specific API endpoint.
+        
+        This is the primary method for calling model APIs in v1.2.
+        Each model has its own dedicated endpoint defined in model_config.json.
+        
+        Args:
+            endpoint: API endpoint path (e.g., /v3/seedream-4.0)
+            data: Request body data
+            is_async: If True, API returns task_id for polling; if False, returns result directly
+            timeout: Request timeout (defaults based on is_async)
+        
+        Returns:
+            dict: API response (task_id for async, or direct result for sync)
+        """
+        if timeout is None:
+            timeout = 60 if is_async else self.LONG_TIMEOUT
+        
+        return self._request("POST", endpoint, data=data, timeout=timeout)
+    
+    def call_model_and_wait(
+        self,
+        endpoint: str,
+        data: dict,
+        is_async: bool = True,
+        poll_callback: callable = None
+    ) -> dict:
+        """
+        Call model endpoint and wait for result (handles both sync and async).
+        
+        Args:
+            endpoint: API endpoint path
+            data: Request body data
+            is_async: Whether the API is async
+            poll_callback: Optional callback for progress updates
+        
+        Returns:
+            dict: Final result (either direct response or polled task result)
+        """
+        response = self.call_model_endpoint(endpoint, data, is_async)
+        
+        if not is_async:
+            return response
+        
+        # Async - need to poll
+        task_id = response.get("task_id")
+        if not task_id:
+            raise JiekouAPIError(
+                message="API 未返回 task_id",
+                code="INVALID_RESPONSE"
+            )
+        
+        return self.poll_task_until_complete(task_id, progress_callback=poll_callback)
+    
     # ===== Utility Methods =====
     def download_file(self, url: str, timeout: int = 120) -> bytes:
         """

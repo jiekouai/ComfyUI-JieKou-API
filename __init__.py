@@ -15,58 +15,60 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[JieKou]")
 
 # Plugin metadata
-__version__ = "1.1.4"  # Updated for API compatibility fixes
+__version__ = "1.2.0"  # Model-specific nodes with pricing display
 __author__ = "JiekouAI"
 
 # ===== Web Directory for JavaScript Extensions =====
 WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web", "js")
 
 # ===== Node Imports =====
+# Utility nodes (not model-specific)
 from .nodes.config_nodes import JieKouTestConnection
-from .nodes.image_nodes import (
-    JieKouTextToImage, 
-    JieKouImageToImage,
-    JieKouImageUpscale,
-    JieKouRemoveBackground
+from .nodes.image_nodes import JieKouImageUpscale, JieKouRemoveBackground
+
+# v1.2: Dynamically generated model-specific nodes
+from .nodes.generated_image_nodes import (
+    IMAGE_NODE_CLASS_MAPPINGS,
+    IMAGE_NODE_DISPLAY_NAME_MAPPINGS
 )
-from .nodes.video_nodes import JieKouVideoGeneration
-# Audio nodes - not included in this version
-# from .nodes.audio_nodes import JieKouTTS
+from .nodes.generated_video_nodes import (
+    VIDEO_NODE_CLASS_MAPPINGS,
+    VIDEO_NODE_DISPLAY_NAME_MAPPINGS
+)
+# Audio nodes - disabled for now (code preserved)
+# from .nodes.generated_audio_nodes import (
+#     AUDIO_NODE_CLASS_MAPPINGS,
+#     AUDIO_NODE_DISPLAY_NAME_MAPPINGS
+# )
 
 # ===== Node Mappings =====
+# Utility nodes
 NODE_CLASS_MAPPINGS = {
     # Config/Auth Nodes
     "JieKouTestConnection": JieKouTestConnection,
     
-    # Image Nodes
-    "JieKouTextToImage": JieKouTextToImage,
-    "JieKouImageToImage": JieKouImageToImage,
+    # Image Tools
     "JieKouImageUpscale": JieKouImageUpscale,
     "JieKouRemoveBackground": JieKouRemoveBackground,
-    
-    # Video Nodes
-    "JieKouVideoGeneration": JieKouVideoGeneration,
-    
-    # Audio Nodes - not included in this version
-    # "JieKouTTS": JieKouTTS,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     # Config/Auth Nodes
-    "JieKouTestConnection": "JieKou Test Connection",
+    "JieKouTestConnection": "Test Connection",
     
-    # Image Nodes
-    "JieKouTextToImage": "JieKou Text to Image",
-    "JieKouImageToImage": "JieKou Image to Image",
-    "JieKouImageUpscale": "JieKou Image Upscale",
-    "JieKouRemoveBackground": "JieKou Remove Background",
-    
-    # Video Nodes
-    "JieKouVideoGeneration": "JieKou Video Generation",
-    
-    # Audio Nodes - not included in this version
-    # "JieKouTTS": "JieKou TTS",
+    # Image Tools
+    "JieKouImageUpscale": "Image Upscale",
+    "JieKouRemoveBackground": "Remove Background",
 }
+
+# Register all dynamically generated model nodes
+NODE_CLASS_MAPPINGS.update(IMAGE_NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(VIDEO_NODE_CLASS_MAPPINGS)
+# NODE_CLASS_MAPPINGS.update(AUDIO_NODE_CLASS_MAPPINGS)  # Audio disabled
+
+NODE_DISPLAY_NAME_MAPPINGS.update(IMAGE_NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(VIDEO_NODE_DISPLAY_NAME_MAPPINGS)
+# NODE_DISPLAY_NAME_MAPPINGS.update(AUDIO_NODE_DISPLAY_NAME_MAPPINGS)  # Audio disabled
 
 # ===== API Routes =====
 # These routes are registered with ComfyUI's PromptServer
@@ -196,45 +198,62 @@ try:
     @routes.get("/jiekou/models")
     async def get_models(request):
         """
-        Get available models from local registry
-        
-        Note: JiekouAI doesn't have a unified /models API,
-        so we use a hardcoded registry based on their documentation.
+        Get available models from model_config.json (v1.2+)
         
         Query params:
-          - type: Filter by model type (image, video_t2v, video_i2v, audio_tts)
+          - category: Filter by category (image_t2i, video_t2v, etc.)
+        
+        Returns all models with full configuration including:
+        - id, name, description, category
+        - endpoint, is_async, response_type
+        - parameters (with enum, min/max, defaults)
+        - product_ids (for pricing)
+        - valid_combinations (for dynamic parameter linkage)
         """
         try:
-            from .utils.model_registry import get_model_registry
+            from .utils.model_config_loader import get_model_config_loader
             
-            registry = get_model_registry()
-            model_type = request.query.get("type")
+            loader = get_model_config_loader()
+            category = request.query.get("category")
             
-            if model_type:
-                models = registry.get_models_by_category(model_type)
+            if category:
+                models = loader.get_models_by_category(category)
             else:
-                # Return all models organized by category
-                models = {
-                    "video_t2v": [{"id": m.id, "name": m.name, "description": m.description} 
-                                 for m in registry.get_video_t2v_models()],
-                    "video_i2v": [{"id": m.id, "name": m.name, "description": m.description} 
-                                 for m in registry.get_video_i2v_models()],
-                    "video_v2v": [{"id": m.id, "name": m.name, "description": m.description} 
-                                 for m in registry.get_video_v2v_models()],
-                    "image": [{"id": m.id, "name": m.name, "description": m.description} 
-                             for m in registry.get_all_image_models()],
-                    "audio": [{"id": m.id, "name": m.name, "description": m.description} 
-                             for m in registry.get_audio_models()],
+                models = loader.get_all_models()
+            
+            # Convert to JSON-serializable format
+            models_data = []
+            for m in models:
+                model_dict = {
+                    "id": m.id,
+                    "name": m.name,
+                    "description": m.description,
+                    "category": m.category,
+                    "endpoint": m.endpoint,
+                    "is_async": m.is_async,
+                    "response_type": m.response_type,
+                    "parameters": [
+                        {
+                            "name": p.name,
+                            "type": p.type,
+                            "description": p.description,
+                            "required": p.required,
+                            "default": p.default,
+                            "enum": p.enum,
+                            "minimum": p.minimum,
+                            "maximum": p.maximum,
+                        }
+                        for p in m.parameters
+                    ],
+                    "product_ids": m.product_ids,
+                    "valid_combinations": m.valid_combinations,
                 }
-                return web.json_response({"models": models})
+                models_data.append(model_dict)
             
-            # Convert to dicts for JSON
-            model_list = [
-                {"id": m.id, "name": m.name, "description": m.description, "category": m.category}
-                for m in models
-            ]
-            
-            return web.json_response({"models": model_list})
+            return web.json_response({
+                "version": loader.get_version(),
+                "models": models_data
+            })
         
         except Exception as e:
             logger.error(f"[JieKou] Get models error: {e}")
@@ -399,6 +418,55 @@ try:
                 {"error": str(e)},
                 status=500
             )
+    
+    # ===== /jiekou/prices route (v1.2) =====
+    @routes.post("/jiekou/prices")
+    async def get_prices(request):
+        """
+        Proxy batch price requests to JieKou AI API.
+        
+        POST body: { "product_ids": ["PRODUCT_ID_1", "PRODUCT_ID_2", ...] }
+        
+        Response: {
+            "prices": [
+                { "product_id": "...", "price": 0.004, "original_price": 0.005, "currency": "USD", "unit": "次" }
+            ]
+        }
+        """
+        try:
+            data = await request.json()
+            product_ids = data.get("product_ids", [])
+            
+            if not product_ids:
+                return web.json_response({
+                    "prices": [],
+                    "error": "No product_ids provided"
+                }, status=400)
+            
+            from .utils.price_service import get_price_service
+            
+            service = get_price_service()
+            prices = service.get_prices(product_ids)
+            
+            # Convert to list format
+            prices_list = []
+            for product_id, info in prices.items():
+                prices_list.append({
+                    "product_id": product_id,
+                    "price": info.get("price", 0),
+                    "original_price": info.get("original_price"),
+                    "currency": info.get("currency", "USD"),
+                    "unit": info.get("unit", "次"),
+                })
+            
+            return web.json_response({"prices": prices_list})
+        
+        except Exception as e:
+            logger.error(f"[JieKou] Get prices error: {e}")
+            return web.json_response({
+                "prices": [],
+                "error": str(e)
+            }, status=500)
     
     # ===== /jiekou/verify route =====
     @routes.get("/jiekou/verify")

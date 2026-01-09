@@ -393,8 +393,8 @@ class JieKouImageToImage:
     Parameters are dynamically loaded based on selected model.
     
     Supports two ways to provide input image:
-    - image: Connect an IMAGE tensor from other nodes (will be converted to base64)
-    - image_url: Directly provide an image URL or base64 string (higher priority if both provided)
+    - image: Connect an IMAGE tensor from other nodes
+    - image_url: Directly provide an image URL (higher priority if both provided)
     """
     
     CATEGORY = "JieKou/Image"
@@ -416,6 +416,12 @@ class JieKouImageToImage:
                 "model": (models, {
                     "default": IMAGE_EDIT_MODELS[0]
                 }),
+                # Image input: URL or base64 string, positioned after model
+                "image_url": ("STRING", {
+                    "default": "",
+                    "placeholder": "输入图片 URL 或 base64",
+                    "dynamicPrompts": True  # 允许右键转换为输入槽
+                }),
                 "prompt": ("STRING", {
                     "default": "",
                     "multiline": True,
@@ -429,14 +435,6 @@ class JieKouImageToImage:
                 }),
             },
             "optional": {
-                # Image tensor input - can connect from Load Image or other image nodes
-                "image": ("IMAGE", {}),
-                # Image URL or base64 string input - higher priority if both provided
-                "image_url": ("STRING", {
-                    "default": "",
-                    "placeholder": "输入图片 URL 或 base64 (优先使用)",
-                    "dynamicPrompts": True  # 允许右键转换为输入槽
-                }),
                 # Hidden input for dynamic parameters (JSON string)
                 "_dynamic_params": ("STRING", {
                     "default": "{}",
@@ -445,16 +443,15 @@ class JieKouImageToImage:
             }
         }
     
-    def generate(self, model: str, prompt: str, save_to_disk: bool = True, image: torch.Tensor = None, image_url: str = "", _dynamic_params: str = "{}", **kwargs):
+    def generate(self, model: str, image_url: str, prompt: str, save_to_disk: bool = True, _dynamic_params: str = "{}", **kwargs):
         """
         Transform input image based on prompt.
         
         Args:
             model: Model ID to use
+            image_url: Input image (URL or base64 string)
             prompt: Text prompt
             save_to_disk: Whether to save image to output folder
-            image: Optional IMAGE tensor from connected node (will be converted to base64)
-            image_url: Optional image URL or base64 string (higher priority if both provided)
             _dynamic_params: JSON string of dynamic parameters from JavaScript
             **kwargs: Model-specific parameters
         
@@ -462,7 +459,6 @@ class JieKouImageToImage:
             tuple: (IMAGE tensor, image_url/path string)
         """
         import json
-        from ..utils.tensor_utils import tensor_to_base64
         
         # Parse dynamic parameters from JSON
         try:
@@ -473,40 +469,9 @@ class JieKouImageToImage:
         # Merge dynamic params into kwargs
         kwargs.update(dynamic_params)
         
-        # Determine input image source: image_url has higher priority (if valid)
-        input_image_data = ""
-        image_source = ""
-        
-        # Check if image_url is a valid URL or base64 data
-        def is_valid_image_url(url: str) -> bool:
-            if not url or not isinstance(url, str):
-                return False
-            url = url.strip()
-            # Valid if it's a URL
-            if url.startswith("http://") or url.startswith("https://"):
-                return True
-            # Valid if it's base64 data (with or without data: prefix)
-            if url.startswith("data:image/"):
-                return True
-            # Valid if it looks like raw base64 (long string without spaces, starts with base64 chars)
-            if len(url) > 100 and " " not in url[:100]:
-                return True
-            return False
-        
-        if image_url and is_valid_image_url(image_url):
-            # Use image_url if provided and valid (higher priority)
-            input_image_data = image_url.strip()
-            image_source = "image_url"
-        elif image is not None:
-            # Convert tensor to base64 with data URL prefix
-            b64_data = tensor_to_base64(image, format="PNG")
-            input_image_data = f"data:image/png;base64,{b64_data}"
-            image_source = "image_tensor"
-        
         logger.info(f"[JieKou] ========== Image-to-Image ==========")
         logger.info(f"[JieKou] Model: {model}")
-        logger.info(f"[JieKou] Image source: {image_source}")
-        logger.info(f"[JieKou] Image data: {input_image_data[:100] if input_image_data else 'None'}...")
+        logger.info(f"[JieKou] Image URL: {image_url[:100] if image_url else 'None'}...")
         logger.info(f"[JieKou] Prompt: {prompt[:100]}...")
         logger.info(f"[JieKou] Save to disk: {save_to_disk}")
         logger.info(f"[JieKou] Dynamic params JSON: {_dynamic_params[:200]}...")
@@ -515,8 +480,8 @@ class JieKouImageToImage:
         if not prompt.strip():
             raise ValueError("Prompt 不能为空")
         
-        if not input_image_data:
-            raise ValueError("请提供输入图片：连接 image 输入槽或填写 image_url")
+        if not image_url or not image_url.strip():
+            raise ValueError("请提供输入图片 URL 或 base64")
         
         try:
             from ..utils.api_client import JiekouAPI, JiekouAPIError
@@ -535,13 +500,9 @@ class JieKouImageToImage:
             if model_id != model:
                 logger.info(f"[JieKou] Resolved model: {model} -> {model_id}")
             
-            # Check if it's a local file path and convert to base64
-            from ..utils.tensor_utils import is_local_file_path, local_file_to_base64
-            if is_local_file_path(input_image_data):
-                logger.info(f"[JieKou] Detected local file path, converting to base64...")
-                input_image_data = local_file_to_base64(input_image_data)
-            
-            # Check if it's a URL (not base64)
+            # Use image_url directly (URL or base64)
+            input_image_data = image_url.strip()
+            # Check if it's base64 (not starting with http)
             is_url = input_image_data.startswith("http://") or input_image_data.startswith("https://")
             
             endpoint = model_config.endpoint
@@ -713,7 +674,7 @@ class JieKouImageUpscale:
     - image_url: Directly provide an image URL (higher priority if both provided)
     """
     
-    CATEGORY = "JieKou AI/Image/Tools"
+    CATEGORY = "JieKou/Image"
     FUNCTION = "upscale"
     RETURN_TYPES = ("IMAGE", "STRING",)
     RETURN_NAMES = ("image", "image_path",)
@@ -764,16 +725,11 @@ class JieKouImageUpscale:
         
         try:
             from ..utils.api_client import JiekouAPI, JiekouAPIError
-            from ..utils.tensor_utils import url_to_tensor, is_local_file_path, local_file_to_base64
+            from ..utils.tensor_utils import url_to_tensor
             
             api = JiekouAPI()
             
             input_image_data = image_url.strip()
-            
-            # Check if it's a local file path and convert to base64
-            if is_local_file_path(input_image_data):
-                logger.info(f"[JieKou] Detected local file path, converting to base64...")
-                input_image_data = local_file_to_base64(input_image_data)
             
             data = {
                 "image": input_image_data,
@@ -839,7 +795,7 @@ class JieKouRemoveBackground:
     - image_url: Directly provide an image URL (higher priority if both provided)
     """
     
-    CATEGORY = "JieKou AI/Image/Tools"
+    CATEGORY = "JieKou/Image"
     FUNCTION = "remove_bg"
     RETURN_TYPES = ("IMAGE", "STRING",)
     RETURN_NAMES = ("image", "image_path",)
@@ -876,16 +832,11 @@ class JieKouRemoveBackground:
         
         try:
             from ..utils.api_client import JiekouAPI, JiekouAPIError
-            from ..utils.tensor_utils import url_to_tensor, is_local_file_path, local_file_to_base64
+            from ..utils.tensor_utils import url_to_tensor
             
             api = JiekouAPI()
             
             input_image_data = image_url.strip()
-            
-            # Check if it's a local file path and convert to base64
-            if is_local_file_path(input_image_data):
-                logger.info(f"[JieKou] Detected local file path, converting to base64...")
-                input_image_data = local_file_to_base64(input_image_data)
             
             data = {
                 "image": input_image_data,
