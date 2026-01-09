@@ -28,128 +28,155 @@ logger = logging.getLogger("[JieKou]")
 
 # ===== Size Presets Configuration =====
 
-# Common size presets with practical dimensions
+# Universal size presets pool - all common sizes
 # Each preset: (display_name, width, height)
-# Provides multiple options per aspect ratio for user flexibility
-
-# Standard presets for models with 256~1536 range
-SIZE_PRESETS_256_1536 = [
+ALL_SIZE_PRESETS = [
     # 1:1 Square
     ("1:1 方形 (512×512)", 512, 512),
+    ("1:1 方形 (768×768)", 768, 768),
     ("1:1 方形 (1024×1024)", 1024, 1024),
+    ("1:1 方形 (2048×2048)", 2048, 2048),
+    ("1:1 方形 (3072×3072)", 3072, 3072),
     # 16:9 Landscape
     ("16:9 横向 (1280×720)", 1280, 720),
-    ("16:9 横向 (1536×864)", 1536, 864),
+    ("16:9 横向 (1920×1080)", 1920, 1080),
+    ("16:9 横向 (2560×1440)", 2560, 1440),
+    ("16:9 横向 (3840×2160)", 3840, 2160),
     # 9:16 Portrait
     ("9:16 竖向 (720×1280)", 720, 1280),
-    ("9:16 竖向 (864×1536)", 864, 1536),
+    ("9:16 竖向 (1080×1920)", 1080, 1920),
+    ("9:16 竖向 (1440×2560)", 1440, 2560),
+    ("9:16 竖向 (2160×3840)", 2160, 3840),
     # 4:3 Landscape
     ("4:3 横向 (800×600)", 800, 600),
     ("4:3 横向 (1024×768)", 1024, 768),
+    ("4:3 横向 (1600×1200)", 1600, 1200),
+    ("4:3 横向 (2560×1920)", 2560, 1920),
     # 3:4 Portrait
     ("3:4 竖向 (600×800)", 600, 800),
     ("3:4 竖向 (768×1024)", 768, 1024),
+    ("3:4 竖向 (1200×1600)", 1200, 1600),
+    ("3:4 竖向 (1920×2560)", 1920, 2560),
     # 3:2 Landscape
     ("3:2 横向 (768×512)", 768, 512),
     ("3:2 横向 (1152×768)", 1152, 768),
+    ("3:2 横向 (1920×1280)", 1920, 1280),
+    ("3:2 横向 (2880×1920)", 2880, 1920),
     # 2:3 Portrait
     ("2:3 竖向 (512×768)", 512, 768),
     ("2:3 竖向 (768×1152)", 768, 1152),
-    # Custom
-    ("自定义", 0, 0),
-]
-
-# Presets for models with 500~4096 range (e.g., MJ Inpaint)
-SIZE_PRESETS_500_4096 = [
-    # 1:1 Square
-    ("1:1 方形 (512×512)", 512, 512),
-    ("1:1 方形 (1024×1024)", 1024, 1024),
-    ("1:1 方形 (2048×2048)", 2048, 2048),
-    # 16:9 Landscape
-    ("16:9 横向 (1280×720)", 1280, 720),
-    ("16:9 横向 (1920×1080)", 1920, 1080),
-    ("16:9 横向 (2560×1440)", 2560, 1440),
-    # 9:16 Portrait
-    ("9:16 竖向 (720×1280)", 720, 1280),
-    ("9:16 竖向 (1080×1920)", 1080, 1920),
-    ("9:16 竖向 (1440×2560)", 1440, 2560),
-    # 4:3 Landscape
-    ("4:3 横向 (800×600)", 800, 600),
-    ("4:3 横向 (1024×768)", 1024, 768),
-    ("4:3 横向 (1600×1200)", 1600, 1200),
-    # 3:4 Portrait
-    ("3:4 竖向 (600×800)", 600, 800),
-    ("3:4 竖向 (768×1024)", 768, 1024),
-    ("3:4 竖向 (1200×1600)", 1200, 1600),
-    # Custom
-    ("自定义", 0, 0),
-]
-
-# Seedream 4.5: total pixels 3.6M~16.7M (min ~1920x1920)
-# Provides common sizes within the valid range
-SIZE_PRESETS_SEEDREAM45 = [
-    # 1:1 Square
-    ("1:1 方形 (1024×1024)", 1024, 1024),
-    ("1:1 方形 (2048×2048)", 2048, 2048),
-    # 16:9 Landscape  
-    ("16:9 横向 (1920×1080)", 1920, 1080),
-    ("16:9 横向 (2560×1440)", 2560, 1440),
-    # 9:16 Portrait
-    ("9:16 竖向 (1080×1920)", 1080, 1920),
-    ("9:16 竖向 (1440×2560)", 1440, 2560),
-    # 4:3 Landscape
-    ("4:3 横向 (1024×768)", 1024, 768),
-    ("4:3 横向 (1600×1200)", 1600, 1200),
-    # 3:4 Portrait
-    ("3:4 竖向 (768×1024)", 768, 1024),
-    ("3:4 竖向 (1200×1600)", 1200, 1600),
-    # 3:2 Landscape
-    ("3:2 横向 (1920×1280)", 1920, 1280),
-    # 2:3 Portrait
     ("2:3 竖向 (1280×1920)", 1280, 1920),
-    # Custom
-    ("自定义", 0, 0),
+    ("2:3 竖向 (1920×2880)", 1920, 2880),
 ]
 
-# Models that need size presets and their corresponding preset list
-MODELS_WITH_SIZE_PRESETS = {
-    # Models with 256~1536 range (size string format like "1024*1024")
-    "flux_1_kontext_dev": ("SIZE_PRESETS_256_1536", "size", "*"),
-    "flux_2_dev": ("SIZE_PRESETS_256_1536", "size", "*"),
-    "flux_2_flex": ("SIZE_PRESETS_256_1536", "size", "*"),
-    "flux_2_pro": ("SIZE_PRESETS_256_1536", "size", "*"),
-    "hunyuan_image_3": ("SIZE_PRESETS_256_1536", "size", "*"),
-    "qwen_text_to_image": ("SIZE_PRESETS_256_1536", "size", "*"),
-    "z_image_turbo": ("SIZE_PRESETS_256_1536", "size", "*"),
-    "z_image_turbo_lora": ("SIZE_PRESETS_256_1536", "size", "*"),
-    # Models with 500~4096 range (width/height separate params)
-    "mj_inpaint": ("SIZE_PRESETS_500_4096", "width_height", None),
-    # Seedream 4.5 (size string format like "2048x2048")
-    "seedream_4_5": ("SIZE_PRESETS_SEEDREAM45", "size", "x"),
+# Model size constraints configuration
+# Each model: (param_type, separator, min_dim, max_dim, min_pixels, max_pixels, min_ratio, max_ratio)
+# - param_type: "size" for single string param, "width_height" for separate params
+# - separator: "*" or "x" for size string format
+# - min_dim/max_dim: min/max for each dimension (width or height)
+# - min_pixels/max_pixels: min/max for total pixels (width * height), None if not applicable
+# - min_ratio/max_ratio: min/max aspect ratio (width/height), None if not applicable
+MODELS_SIZE_CONSTRAINTS = {
+    # Models with 256~1536 range per dimension
+    "flux_1_kontext_dev": ("size", "*", 256, 1536, None, None, None, None),
+    "flux_2_dev": ("size", "*", 256, 1536, None, None, None, None),
+    "flux_2_flex": ("size", "*", 256, 1536, None, None, None, None),
+    "flux_2_pro": ("size", "*", 256, 1536, None, None, None, None),
+    "hunyuan_image_3": ("size", "*", 256, 1536, None, None, None, None),
+    "qwen_text_to_image": ("size", "*", 256, 1536, None, None, None, None),
+    "z_image_turbo": ("size", "*", 256, 1536, None, None, None, None),
+    "z_image_turbo_lora": ("size", "*", 256, 1536, None, None, None, None),
+    # MJ Inpaint: 500~4096 per dimension
+    "mj_inpaint": ("width_height", None, 500, 4096, None, None, None, None),
+    # Seedream 4.5: total pixels 3686400~16777216, ratio 1/16~16
+    "seedream_4_5": ("size", "x", None, None, 3686400, 16777216, 1/16, 16),
 }
 
-def get_size_presets(model_id: str) -> tuple:
+
+def filter_presets_by_constraints(
+    min_dim: int = None, 
+    max_dim: int = None,
+    min_pixels: int = None, 
+    max_pixels: int = None,
+    min_ratio: float = None,
+    max_ratio: float = None
+) -> list:
     """
-    Get size presets configuration for a model.
+    Filter size presets based on model constraints.
+    
+    Args:
+        min_dim: Minimum dimension (applies to both width and height)
+        max_dim: Maximum dimension (applies to both width and height)
+        min_pixels: Minimum total pixels (width * height)
+        max_pixels: Maximum total pixels (width * height)
+        min_ratio: Minimum aspect ratio (width / height)
+        max_ratio: Maximum aspect ratio (width / height)
+    
+    Returns:
+        List of valid presets + "自定义" option
+    """
+    valid_presets = []
+    
+    for name, width, height in ALL_SIZE_PRESETS:
+        # Check dimension constraints
+        if min_dim is not None and (width < min_dim or height < min_dim):
+            continue
+        if max_dim is not None and (width > max_dim or height > max_dim):
+            continue
+        
+        # Check pixel constraints
+        total_pixels = width * height
+        if min_pixels is not None and total_pixels < min_pixels:
+            continue
+        if max_pixels is not None and total_pixels > max_pixels:
+            continue
+        
+        # Check ratio constraints
+        if height > 0:
+            ratio = width / height
+            if min_ratio is not None and ratio < min_ratio:
+                continue
+            if max_ratio is not None and ratio > max_ratio:
+                continue
+        
+        valid_presets.append((name, width, height))
+    
+    # Always add custom option at the end
+    valid_presets.append(("自定义", 0, 0))
+    
+    return valid_presets
+
+
+def get_size_presets_for_model(model_id: str) -> tuple:
+    """
+    Get filtered size presets for a specific model based on its constraints.
+    
+    Args:
+        model_id: Model identifier
     
     Returns:
         tuple: (presets_list, param_type, separator) or (None, None, None) if no presets
-        - presets_list: List of (display_name, width, height) tuples
-        - param_type: "size" for single size param, "width_height" for separate params
-        - separator: "*" or "x" for size string format
     """
-    config = MODELS_WITH_SIZE_PRESETS.get(model_id)
-    if not config:
+    constraints = MODELS_SIZE_CONSTRAINTS.get(model_id)
+    if not constraints:
         return None, None, None
     
-    preset_name, param_type, separator = config
-    presets = {
-        "SIZE_PRESETS_256_1536": SIZE_PRESETS_256_1536,
-        "SIZE_PRESETS_500_4096": SIZE_PRESETS_500_4096,
-        "SIZE_PRESETS_SEEDREAM45": SIZE_PRESETS_SEEDREAM45,
-    }.get(preset_name)
+    param_type, separator, min_dim, max_dim, min_pixels, max_pixels, min_ratio, max_ratio = constraints
+    
+    # Filter presets based on constraints
+    presets = filter_presets_by_constraints(
+        min_dim=min_dim,
+        max_dim=max_dim,
+        min_pixels=min_pixels,
+        max_pixels=max_pixels,
+        min_ratio=min_ratio,
+        max_ratio=max_ratio
+    )
     
     return presets, param_type, separator
+
+# Alias for backward compatibility
+get_size_presets = get_size_presets_for_model
 
 
 def parse_size_preset(preset_value: str) -> tuple:
