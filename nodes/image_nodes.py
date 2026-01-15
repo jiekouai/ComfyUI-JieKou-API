@@ -550,10 +550,27 @@ class JieKouImageToImage:
             
             # Build request data
             data = {"prompt": prompt}
+            files = None
             
             # Add image input (different field names for different models)
-            # Use input_image_data which is either URL string or data:image/png;base64,xxx
-            if model_id.startswith("flux-") or model_id == "seedream-4-0" or model_id == "nano-banana-pro-light-i2i":
+            # GPT image edit requires multipart/form-data with file upload
+            if model_id == "gpt-image-1-edit":
+                # GPT image edit uses multipart/form-data with file upload
+                if image is not None:
+                    from ..utils.tensor_utils import tensor_to_bytes
+                    # Convert tensor to PNG bytes for file upload
+                    image_bytes = tensor_to_bytes(image, format="PNG")
+                    # API expects file[] type, but for single file, use tuple format directly
+                    # For multiple files, would need to use list of tuples with same field name
+                    files = {
+                        "image": ("image.png", image_bytes, "image/png")
+                    }
+                    logger.info(f"[JieKou] GPT image edit: uploading {len(image_bytes)} bytes as file")
+                else:
+                    raise ValueError("GPT 图像编辑需要提供 image 输入（不支持 image_url）")
+                # Use model parameter from kwargs if provided, otherwise default to "gpt-image-1"
+                data["model"] = kwargs.get("model", "gpt-image-1")
+            elif model_id.startswith("flux-") or model_id == "seedream-4-0" or model_id == "nano-banana-pro-light-i2i":
                 # These models use images array
                 data["images"] = [input_image_data]
             elif model_id == "seedream-4-5":
@@ -570,10 +587,6 @@ class JieKouImageToImage:
                     if "," in input_image_data:
                         raw_b64 = input_image_data.split(",", 1)[1]
                     data["image_base64s"] = [raw_b64]
-            elif model_id == "gpt-image-1-edit":
-                # GPT uses image array with model field
-                data["image"] = [input_image_data]
-                data["model"] = "gpt-image-1"
             else:
                 # Default: single image field
                 data["image"] = input_image_data
@@ -601,11 +614,14 @@ class JieKouImageToImage:
             logger.info(f"[JieKou] ===== API Request =====")
             logger.info(f"[JieKou] Endpoint: {endpoint}, async={is_async}")
             logger.info(f"[JieKou] Request body: {log_data}")
+            if files:
+                logger.info(f"[JieKou] Files: {list(files.keys())}")
             
             # Make API request
             # Sync APIs may take longer, use 20 min timeout; async just submits task
             request_timeout = 60 if is_async else 1200
-            response = api._request("POST", endpoint, data=data, timeout=request_timeout)
+            # For GPT image edit, pass files parameter for multipart/form-data
+            response = api._request("POST", endpoint, data=data, files=files, timeout=request_timeout)
             
             # Handle response
             image_url = ""  # Track URL for output
@@ -653,11 +669,32 @@ class JieKouImageToImage:
                         raise ValueError("API 返回的图像数据格式未知")
             
             elif response_type == "image_urls":
+                # Try multiple possible response formats
                 urls = response.get("image_urls") or response.get("images", [])
+                
+                # Some APIs return data in a "data" field (e.g., nano-banana-pro-light)
+                if not urls and "data" in response:
+                    data_field = response.get("data", [])
+                    if isinstance(data_field, list) and data_field:
+                        # Extract URLs from data array
+                        urls = []
+                        for item in data_field:
+                            if isinstance(item, dict) and "url" in item:
+                                urls.append(item["url"])
+                            elif isinstance(item, str):
+                                urls.append(item)
+                        logger.debug(f"[JieKou] Extracted {len(urls)} URLs from data field")
+                
                 if not urls:
+                    logger.error(f"[JieKou] Response keys: {list(response.keys())}")
+                    logger.error(f"[JieKou] Response: {response}")
                     raise ValueError("API 未返回图像数据")
+                
                 # Handle both string URL and dict with url field
                 image_url = urls[0] if isinstance(urls[0], str) else urls[0].get("url", "")
+                if not image_url:
+                    logger.error(f"[JieKou] Could not extract URL from: {urls[0]}")
+                    raise ValueError("API 返回的 URL 格式无效")
                 image_tensor = url_to_tensor(image_url)
             
             else:

@@ -98,11 +98,16 @@ class JiekouAPI:
         Build request headers with authentication
         
         Uses: Authorization: Bearer {{API Key}}
+        
+        Args:
+            content_type: Content-Type header value. If None, Content-Type will not be set
+                         (useful for multipart/form-data where requests sets it automatically)
         """
         headers = {
-            "Content-Type": content_type,
             "Accept": "application/json",
         }
+        if content_type is not None:
+            headers["Content-Type"] = content_type
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
@@ -162,6 +167,7 @@ class JiekouAPI:
         method: str,
         endpoint: str,
         data: dict = None,
+        files: dict = None,
         params: dict = None,
         timeout: int = None,
         expect_json: bool = True,
@@ -173,7 +179,8 @@ class JiekouAPI:
         Args:
             method: HTTP method (GET, POST, etc.)
             endpoint: API endpoint (e.g., /v3/video/generate)
-            data: Request body data (JSON)
+            data: Request body data (JSON or form data)
+            files: Files to upload (for multipart/form-data)
             params: Query parameters
             timeout: Request timeout in seconds
             expect_json: If True, parse response as JSON
@@ -208,18 +215,39 @@ class JiekouAPI:
                     else:
                         log_data[k] = v
                 logger.info(f"[JieKou] Request body: {log_data}")
+            if files:
+                logger.info(f"[JieKou] Files: {list(files.keys())}")
         
         # Use semaphore to limit concurrent requests (T070)
         with _REQUEST_SEMAPHORE:
             try:
-                response = requests.request(
-                    method=method,
-                    url=url,
-                    headers=self._get_headers(),
-                    json=data,
-                    params=params,
-                    timeout=timeout
-                )
+                # If files are provided, use multipart/form-data
+                if files:
+                    # For multipart/form-data, don't set Content-Type header manually
+                    # requests will set it automatically with boundary
+                    headers = self._get_headers(content_type=None)
+                    # Remove Content-Type to let requests set it with boundary
+                    if "Content-Type" in headers:
+                        del headers["Content-Type"]
+                    response = requests.request(
+                        method=method,
+                        url=url,
+                        headers=headers,
+                        data=data,
+                        files=files,
+                        params=params,
+                        timeout=timeout
+                    )
+                else:
+                    # Use JSON for regular requests
+                    response = requests.request(
+                        method=method,
+                        url=url,
+                        headers=self._get_headers(),
+                        json=data,
+                        params=params,
+                        timeout=timeout
+                    )
                 result = self._handle_response(response, expect_json=expect_json)
                 
                 # Log API response (skip if silent)
@@ -495,7 +523,11 @@ class JiekouAPI:
                 logger.info(f"[JieKou] Task {task_id} completed successfully")
                 return response
             elif status == TaskStatus.FAILED:
-                reason = task_info.get("reason", "未知错误")
+                reason = task_info.get("reason", "") or task_info.get("error", "") or task_info.get("message", "")
+                if not reason:
+                    # Log full task_info for debugging
+                    logger.error(f"[JieKou] Task {task_id} failed, full task_info: {task_info}")
+                    reason = "未知错误（无详细信息）"
                 logger.error(f"[JieKou] Task {task_id} failed: {reason}")
                 raise JiekouAPIError(
                     message=f"任务失败: {reason}",
@@ -644,6 +676,7 @@ class JiekouAPI:
         self,
         endpoint: str,
         data: dict,
+        files: dict = None,
         is_async: bool = True,
         timeout: int = None
     ) -> dict:
@@ -655,7 +688,8 @@ class JiekouAPI:
         
         Args:
             endpoint: API endpoint path (e.g., /v3/seedream-4.0)
-            data: Request body data
+            data: Request body data (form data for multipart, or JSON)
+            files: Files to upload (for multipart/form-data)
             is_async: If True, API returns task_id for polling; if False, returns result directly
             timeout: Request timeout (defaults based on is_async)
         
@@ -665,12 +699,13 @@ class JiekouAPI:
         if timeout is None:
             timeout = 60 if is_async else self.LONG_TIMEOUT
         
-        return self._request("POST", endpoint, data=data, timeout=timeout)
+        return self._request("POST", endpoint, data=data, files=files, timeout=timeout)
     
     def call_model_and_wait(
         self,
         endpoint: str,
         data: dict,
+        files: dict = None,
         is_async: bool = True,
         poll_callback: callable = None
     ) -> dict:
@@ -679,14 +714,15 @@ class JiekouAPI:
         
         Args:
             endpoint: API endpoint path
-            data: Request body data
+            data: Request body data (form data for multipart, or JSON)
+            files: Files to upload (for multipart/form-data)
             is_async: Whether the API is async
             poll_callback: Optional callback for progress updates
         
         Returns:
             dict: Final result (either direct response or polled task result)
         """
-        response = self.call_model_endpoint(endpoint, data, is_async)
+        response = self.call_model_endpoint(endpoint, data, files=files, is_async=is_async)
         
         if not is_async:
             return response
@@ -699,7 +735,10 @@ class JiekouAPI:
                 code="INVALID_RESPONSE"
             )
         
-        return self.poll_task_until_complete(task_id, progress_callback=poll_callback)
+        result = self.poll_task_until_complete(task_id, progress_callback=poll_callback)
+        # Include task_id in result for output
+        result["_task_id"] = task_id
+        return result
     
     # ===== Utility Methods =====
     def download_file(self, url: str, timeout: int = 120) -> bytes:

@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[JieKou]")
 
 # Plugin metadata
-__version__ = "1.2.0"  # Model-specific nodes with pricing display
+__version__ = "1.2.1"  # Model-specific nodes with pricing display
 __author__ = "JiekouAI"
 
 # ===== Web Directory for JavaScript Extensions =====
@@ -69,6 +69,61 @@ NODE_CLASS_MAPPINGS.update(VIDEO_NODE_CLASS_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(IMAGE_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(VIDEO_NODE_DISPLAY_NAME_MAPPINGS)
 # NODE_DISPLAY_NAME_MAPPINGS.update(AUDIO_NODE_DISPLAY_NAME_MAPPINGS)  # Audio disabled
+
+# Debug: Show all MJ nodes in NODE_CLASS_MAPPINGS with class details
+mj_nodes_in_mapping = [k for k in NODE_CLASS_MAPPINGS.keys() if 'Mj' in k or 'mj' in k.lower()]
+logger.info(f"[JieKou] MJ nodes in NODE_CLASS_MAPPINGS: {mj_nodes_in_mapping}")
+
+# Compare INPUT_TYPES of working vs non-working nodes
+import json
+working_nodes = ["JieKouMjInpaint", "JieKouMjVariation"]
+non_working_nodes = ["JieKouMjTxt2Img", "JieKouMjReroll"]
+
+for name in working_nodes + non_working_nodes:
+    if name in NODE_CLASS_MAPPINGS:
+        cls = NODE_CLASS_MAPPINGS[name]
+        try:
+            input_types = cls.INPUT_TYPES()
+            status = "✅ WORKS" if name in working_nodes else "❌ MISSING"
+            logger.info(f"[JieKou] {status} {name} INPUT_TYPES:")
+            for section in ["required", "optional"]:
+                if section in input_types and input_types[section]:
+                    for param_name, param_def in input_types[section].items():
+                        type_spec = param_def[0] if isinstance(param_def, tuple) else param_def
+                        options = param_def[1] if isinstance(param_def, tuple) and len(param_def) > 1 else {}
+                        type_desc = type_spec if isinstance(type_spec, str) else f"tuple({len(type_spec)} items)" if isinstance(type_spec, tuple) else str(type(type_spec))
+                        logger.info(f"[JieKou]   {section}.{param_name}: {type_desc}, options_keys={list(options.keys()) if isinstance(options, dict) else 'N/A'}")
+        except Exception as e:
+            logger.error(f"[JieKou] ❌ {name} error: {e}")
+
+# Debug: Validate that all MJ nodes have correct ComfyUI attributes
+for name in ["JieKouMjTxt2Img", "JieKouMjReroll", "JieKouMjInpaint", "JieKouMjVariation", 
+             "JieKouMjOutpaint", "JieKouMjRemix", "JieKouMjRemoveBackground", "JieKouMjUpscale"]:
+    if name in NODE_CLASS_MAPPINGS:
+        try:
+            node_class = NODE_CLASS_MAPPINGS[name]
+            # Check all required ComfyUI attributes
+            attrs = {
+                "CATEGORY": getattr(node_class, "CATEGORY", None),
+                "FUNCTION": getattr(node_class, "FUNCTION", None),
+                "RETURN_TYPES": getattr(node_class, "RETURN_TYPES", None),
+                "OUTPUT_NODE": getattr(node_class, "OUTPUT_NODE", None),
+            }
+            input_types = node_class.INPUT_TYPES()
+            req_keys = list(input_types.get("required", {}).keys())
+            
+            # Check for any None or invalid attributes
+            issues = [k for k, v in attrs.items() if v is None]
+            if issues:
+                logger.error(f"[JieKou] ❌ {name} missing attrs: {issues}")
+            else:
+                logger.info(f"[JieKou] ✅ {name}: CATEGORY={attrs['CATEGORY']}, FUNCTION={attrs['FUNCTION']}, required={req_keys}")
+        except Exception as e:
+            import traceback
+            logger.error(f"[JieKou] ❌ {name} error: {e}")
+            logger.error(traceback.format_exc())
+    else:
+        logger.warning(f"[JieKou] ⚠️ Node {name} not found in NODE_CLASS_MAPPINGS")
 
 # ===== API Routes =====
 # These routes are registered with ComfyUI's PromptServer

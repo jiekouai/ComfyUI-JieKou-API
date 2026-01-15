@@ -147,6 +147,35 @@ def tensor_to_base64(tensor: torch.Tensor, format: str = "PNG") -> str:
     return b64_string
 
 
+# ===== tensor_to_bytes() =====
+def tensor_to_bytes(tensor: torch.Tensor, format: str = "PNG") -> bytes:
+    """
+    Convert ComfyUI IMAGE tensor to image bytes
+    
+    Args:
+        tensor: torch.Tensor with shape [B, H, W, C] or [H, W, C]
+        format: Image format (PNG, JPEG, WEBP)
+    
+    Returns:
+        Image bytes
+    """
+    # Handle batch dimension - take first image if batched
+    if tensor.dim() == 4:
+        tensor = tensor[0]
+    
+    # Convert to numpy and denormalize
+    np_image = tensor.cpu().numpy()
+    np_image = (np_image * 255).clip(0, 255).astype(np.uint8)
+    
+    # Create PIL Image
+    image = Image.fromarray(np_image, mode="RGB")
+    
+    # Save to bytes
+    buffer = BytesIO()
+    image.save(buffer, format=format)
+    return buffer.getvalue()
+
+
 # ===== T042: video_to_frames() =====
 def video_to_frames(video_bytes: bytes) -> torch.Tensor:
     """

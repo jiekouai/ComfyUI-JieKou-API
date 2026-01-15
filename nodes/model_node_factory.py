@@ -507,17 +507,33 @@ def build_input_types(model_config: dict, categories: list) -> dict:
     param_names = {p.get("name", "") for p in model_config.get("parameters", [])}
     uses_task_id = "task_id" in param_names
     
+    # Special case: mj_remove_background only accepts URL, not image tensor
+    is_mj_remove_bg = model_id == "mj_remove_background"
+    
+    # Special case: GPT image edit doesn't support image_url parameter (only accepts file array)
+    is_gpt_image_edit = model_id in ("gpt_image_edits", "gpt-image-1-edit")
+    
     # For I2I/I2V models, add image inputs (both tensor and URL)
     # But skip for models that use task_id to reference previous tasks
+    # mj_remove_background only needs URL input, not image tensor
     needs_image_input = any(cat in ("image_edit", "video_i2v") for cat in categories) and not uses_task_id
     if needs_image_input:
         # Image tensor input - can connect from Load Image or other image nodes
         optional["image"] = ("IMAGE", {})
         # Image URL or base64 string input - higher priority if both provided
-        optional["image_url"] = ("STRING", {
+        # But skip for GPT image edit which doesn't support image_url
+        if not is_gpt_image_edit:
+            optional["image_url"] = ("STRING", {
+                "default": "",
+                "placeholder": "输入图片 URL 或 base64 (优先使用)",
+                "dynamicPrompts": True
+            })
+    
+    # mj_remove_background only accepts URL input (no image tensor support)
+    if is_mj_remove_bg:
+        required["image_url"] = ("STRING", {
             "default": "",
-            "placeholder": "输入图片 URL 或 base64 (优先使用)",
-            "dynamicPrompts": True
+            "placeholder": "输入图片 URL",
         })
     
     # For V2V models, add video_url input
@@ -566,8 +582,21 @@ def build_input_types(model_config: dict, categories: list) -> dict:
         is_required = param_data.get("required", False)
         
         # Skip parameters that are handled separately
+        # But for GPT image edit, include "model" parameter as enum input
         skip_params = {"model", "image", "images", "img_url", "image_url", "video"}
         if name in skip_params:
+            # Special case: GPT image edit needs model parameter as enum input
+            if name == "model" and is_gpt_image_edit:
+                # Process model parameter for GPT image edit
+                type_spec, options = param_to_comfyui_type(param_data)
+                if is_required:
+                    required[name] = (type_spec, options) if isinstance(type_spec, str) else (type_spec[0], options)
+                else:
+                    optional[name] = (type_spec, options) if isinstance(type_spec, str) else (type_spec[0], options)
+            continue
+        
+        # For mj_remove_background, skip "url" param as it's filled from image input
+        if is_mj_remove_bg and name == "url":
             continue
         
         # Skip size/width/height params if using presets
@@ -620,10 +649,14 @@ def build_input_types(model_config: dict, categories: list) -> dict:
         "label_off": "不保存到本地"
     })
     
-    return {
+    # Note: ComfyUI requires "optional" to be a dict (not None) if present
+    # because node_info() calls value.keys() on all items
+    result = {
         "required": required,
-        "optional": optional if optional else None,
     }
+    if optional:
+        result["optional"] = optional
+    return result
 
 
 # ===== T008: Dynamic Node Class Factory =====
@@ -651,6 +684,9 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
     endpoint = model_config.get("endpoint", "")
     is_async = model_config.get("is_async", True)
     response_type = model_config.get("response_type", "image_urls")
+    
+    # Check if this is a Midjourney model - they need task_id output
+    is_mj_model = model_id.startswith("mj_")
     
     # Build category path for menu - use target_category if specified
     category_map = {
@@ -684,6 +720,9 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
             api = JiekouAPI()
             
             # Determine input image source: image_url has higher priority (if valid)
+            # But GPT image edit doesn't support image_url, only accepts image tensor
+            is_gpt_image_edit = model_id in ("gpt_image_edits", "gpt-image-1-edit")
+            
             input_image_data = ""
             image_source = ""
             
@@ -699,18 +738,48 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
                     return True
                 return False
             
-            if image_url and is_valid_image_url(image_url):
+            # mj_remove_background only accepts URL, handle separately
+            mj_remove_bg_url = None
+            if is_mj_model and model_id == "mj_remove_background":
+                if image_url and is_valid_image_url(image_url):
+                    mj_remove_bg_url = image_url.strip()
+                    image_source = "image_url"
+                else:
+                    raise ValueError("Midjourney 移除背景需要提供有效的图片 URL")
+            # GPT image edit only accepts image tensor, not image_url
+            # For GPT image edit, we need to use multipart/form-data with file upload
+            elif is_gpt_image_edit:
+                gpt_image_bytes = None
+                if image is not None:
+                    from ..utils.tensor_utils import tensor_to_bytes
+                    # Convert tensor to PNG bytes for file upload
+                    gpt_image_bytes = tensor_to_bytes(image, format="PNG")
+                    image_source = "image_tensor"
+                else:
+                    raise ValueError("GPT 图像编辑需要提供 image 输入（不支持 image_url）")
+            elif image_url and is_valid_image_url(image_url):
                 input_image_data = image_url.strip()
                 image_source = "image_url"
             elif image is not None:
                 b64_data = tensor_to_base64(image, format="PNG")
                 input_image_data = f"data:image/png;base64,{b64_data}"
                 image_source = "image_tensor"
+            else:
+                input_image_data = ""
             
             logger.info(f"[JieKou] Image source: {image_source if image_source else 'None'}")
             
             # Build request data
             data = {}
+            files = None
+            
+            # First, add prompt parameter if present in kwargs (critical for text-to-image models)
+            # This ensures prompt is always included and not accidentally skipped
+            if "prompt" in kwargs and kwargs["prompt"] is not None:
+                prompt_value = kwargs["prompt"]
+                if isinstance(prompt_value, str) and prompt_value.strip():
+                    param_type = param_type_map.get("prompt", "string")
+                    data["prompt"] = coerce_param_value(prompt_value, param_type)
             
             # Handle size presets
             size_presets_config, preset_param_type, separator = get_size_presets(model_id)
@@ -741,7 +810,19 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
                 logger.info(f"[JieKou] Size preset: {size_preset} -> {size_info}")
             
             # Add image for edit models
-            if input_image_data:
+            # mj_remove_background uses URL directly (no tensor support)
+            if mj_remove_bg_url:
+                data["url"] = mj_remove_bg_url
+                logger.info(f"[JieKou] MJ remove background: using URL")
+            elif is_gpt_image_edit and gpt_image_bytes:
+                # GPT image edit uses multipart/form-data with file upload
+                # API expects file[] type, but for single file, use tuple format directly
+                # For multiple files, would need to use list of tuples with same field name
+                files = {
+                    "image": ("image.png", gpt_image_bytes, "image/png")
+                }
+                logger.info(f"[JieKou] GPT image edit: uploading {len(gpt_image_bytes)} bytes as file")
+            elif input_image_data:
                 img = input_image_data
                 # Different models use different field names
                 model_id_lower = model_id.lower()
@@ -768,26 +849,50 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
                 else:
                     data["image"] = img
             
-            # Add all other parameters with type coercion
-            logger.debug(f"[JieKou] Processing kwargs: {list(kwargs.keys())}")
+            # Add all other parameters with type coercion (skip prompt as it's already added)
             for key, value in kwargs.items():
+                # Skip prompt as it's already added at the beginning
+                if key == "prompt":
+                    continue
                 if value is None:
-                    logger.debug(f"[JieKou] Skipping {key}: None value")
                     continue
                 if isinstance(value, str) and value.strip() == "":
-                    logger.debug(f"[JieKou] Skipping {key}: empty string")
                     continue
                 # Coerce value to correct type based on param definition
                 param_type = param_type_map.get(key, "string")
                 data[key] = coerce_param_value(value, param_type)
-                logger.debug(f"[JieKou] Added {key}: {type(data[key]).__name__}")
+            
+            # Special handling for flux-1-kontext-dev to ensure prompt is properly handled
+            if model_id == "flux_1_kontext_dev":
+                # Ensure prompt exists and is not empty
+                if "prompt" not in data or not data.get("prompt"):
+                    raise ValueError("flux-1-kontext-dev requires a non-empty prompt parameter")
+                
+                # Ensure prompt is the first parameter in the request
+                # Some APIs may be sensitive to parameter order
+                prompt_value = data.pop("prompt")
+                # Create new dict with prompt first, then all other params
+                ordered_data = {"prompt": prompt_value}
+                ordered_data.update(data)
+                data = ordered_data
+                
+                # Ensure images parameter is not present if no image was provided
+                # Empty images array might interfere with prompt processing
+                if "images" in data and not input_image_data:
+                    # Remove images if it's an empty array or contains empty strings
+                    images_value = data.get("images", [])
+                    if not images_value or (isinstance(images_value, list) and all(not img or (isinstance(img, str) and not img.strip()) for img in images_value)):
+                        del data["images"]
             
             # Log request
             log_data = {k: (v[:50] + "..." if isinstance(v, str) and len(v) > 100 else v) for k, v in data.items()}
             logger.info(f"[JieKou] Request: {log_data}")
+            if files:
+                logger.info(f"[JieKou] Files: {list(files.keys())}")
             
             # Make API request
-            result = api.call_model_and_wait(endpoint, data, is_async)
+            # For GPT image edit, pass files parameter for multipart/form-data
+            result = api.call_model_and_wait(endpoint, data, files=files, is_async=is_async)
             
             # Handle response
             image_result_url = ""
@@ -800,9 +905,12 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
             
             elif response_type == "b64_json":
                 images = result.get("data", [])
+                logger.debug(f"[JieKou] Response data type: {type(images)}, length: {len(images) if isinstance(images, list) else 'N/A'}")
                 if not images:
+                    logger.error(f"[JieKou] Response result: {result}")
                     raise ValueError("API 未返回图像数据")
                 first_image = images[0]
+                logger.debug(f"[JieKou] First image keys: {first_image.keys() if isinstance(first_image, dict) else type(first_image)}")
                 if first_image.get("b64_json"):
                     image_tensor = base64_to_tensor(first_image["b64_json"])
                     image_result_url = "(base64 data)"
@@ -810,13 +918,36 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
                     image_result_url = first_image["url"]
                     image_tensor = url_to_tensor(image_result_url)
                 else:
-                    raise ValueError("API 返回的图像数据格式未知")
+                    logger.error(f"[JieKou] First image data: {first_image}")
+                    raise ValueError(f"API 返回的图像数据格式未知，期望 b64_json 或 url，实际: {list(first_image.keys()) if isinstance(first_image, dict) else type(first_image)}")
             
             elif response_type == "image_urls":
+                # Try multiple possible response formats
                 urls = result.get("image_urls") or result.get("images", [])
+                
+                # Some APIs return data in a "data" field (e.g., nano-banana-pro-light)
+                if not urls and "data" in result:
+                    data_field = result.get("data", [])
+                    if isinstance(data_field, list) and data_field:
+                        # Extract URLs from data array
+                        urls = []
+                        for item in data_field:
+                            if isinstance(item, dict) and "url" in item:
+                                urls.append(item["url"])
+                            elif isinstance(item, str):
+                                urls.append(item)
+                        logger.debug(f"[JieKou] Extracted {len(urls)} URLs from data field")
+                
                 if not urls:
+                    logger.error(f"[JieKou] Response result keys: {list(result.keys())}")
+                    logger.error(f"[JieKou] Response result: {result}")
                     raise ValueError("API 未返回图像数据")
+                
+                # Extract URL from first item (handle both string and dict formats)
                 image_result_url = urls[0] if isinstance(urls[0], str) else urls[0].get("url", "")
+                if not image_result_url:
+                    logger.error(f"[JieKou] Could not extract URL from: {urls[0]}")
+                    raise ValueError("API 返回的 URL 格式无效")
                 image_tensor = url_to_tensor(image_result_url)
             
             else:
@@ -845,7 +976,14 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
             if save_to_disk and output_path:
                 ui_info["text"] = [f"✅ 图片已保存: {os.path.basename(output_path)}"]
             
-            return {"ui": ui_info, "result": (image_tensor, image_result_url,)}
+            # Extract task_id for MJ models
+            task_id_output = result.get("_task_id", "")
+            
+            # Return different tuple based on model type
+            if is_mj_model:
+                return {"ui": ui_info, "result": (image_tensor, image_result_url, task_id_output)}
+            else:
+                return {"ui": ui_info, "result": (image_tensor, image_result_url,)}
         
         except JiekouAPIError as e:
             logger.error(f"[JieKou] API Error: {e.message}")
@@ -854,12 +992,19 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
             logger.error(f"[JieKou] Error: {e}")
             raise
     
-    # Create the class
+    # Create the class with different return types for MJ models
+    if is_mj_model:
+        return_types = ("IMAGE", "STRING", "STRING")
+        return_names = ("image", "image_url", "task_id")
+    else:
+        return_types = ("IMAGE", "STRING")
+        return_names = ("image", "image_url")
+    
     node_class = type(class_name, (), {
         "CATEGORY": node_category,
         "FUNCTION": "generate",
-        "RETURN_TYPES": ("IMAGE", "STRING",),
-        "RETURN_NAMES": ("image", "image_url",),
+        "RETURN_TYPES": return_types,
+        "RETURN_NAMES": return_names,
         "OUTPUT_NODE": True,
         "INPUT_TYPES": classmethod(lambda cls: input_types),
         "generate": generate,

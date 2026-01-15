@@ -4177,13 +4177,17 @@
       ],
       "endpoint": "/v1/images/edits",
       "is_async": false,
-      "response_type": "image_urls",
+      "response_type": "b64_json",
       "parameters": [
         {
           "name": "model",
           "type": "string",
           "description": "用于图像编辑的模型。目前仅支持 `gpt-image-1`。",
-          "required": true
+          "required": true,
+          "enum": [
+            "gpt-image-1"
+          ],
+          "default": "gpt-image-1"
         },
         {
           "name": "image",
@@ -4204,7 +4208,6 @@
           "required": false,
           "enum": [
             "auto",
-            "gpt-image-1",
             "high",
             "medium",
             "low"
@@ -4371,7 +4374,7 @@
       "name": "Midjourney 区域重绘",
       "description": "Midjourney 区域重绘",
       "categories": [
-        "image_edit"
+        "image_tool"
       ],
       "endpoint": "/v3/async/mj-inpaint",
       "is_async": true,
@@ -4441,7 +4444,7 @@
       "name": "Midjourney 变化",
       "description": "Midjourney 变化",
       "categories": [
-        "image_edit"
+        "image_tool"
       ],
       "endpoint": "/v3/async/mj-variation",
       "is_async": true,
@@ -4491,7 +4494,7 @@
       "name": "Midjourney 扩图",
       "description": "Midjourney 扩图",
       "categories": [
-        "image_edit"
+        "image_tool"
       ],
       "endpoint": "/v3/async/mj-outpaint",
       "is_async": true,
@@ -4537,7 +4540,7 @@
       "name": "Midjourney 重塑",
       "description": "Midjourney 重塑",
       "categories": [
-        "image_edit"
+        "image_tool"
       ],
       "endpoint": "/v3/async/mj-remix",
       "is_async": true,
@@ -5482,7 +5485,7 @@
       "name": "Midjourney 重新执行",
       "description": "Midjourney 重新执行",
       "categories": [
-        "image_t2i"
+        "image_tool"
       ],
       "endpoint": "/v3/async/mj-reroll",
       "is_async": true,
