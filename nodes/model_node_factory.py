@@ -201,6 +201,75 @@ def parse_size_preset(preset_value: str) -> tuple:
 
 # ===== T009: Parameter Type Converters =====
 
+def parse_default_from_description(description: str, param_type: str) -> Any:
+    """
+    Parse default value from parameter description.
+    Many API docs include default values in descriptions like "默认值为 1" or "默认值为 3.5".
+    
+    Args:
+        description: Parameter description text
+        param_type: Parameter type ("integer", "number", "string", "boolean")
+        
+    Returns:
+        Parsed default value or None if not found
+    """
+    import re
+    
+    # Common patterns for default values in Chinese/English descriptions
+    patterns = [
+        r'默认值[为是：:]\s*([\-]?\d+\.?\d*)',  # 默认值为 1 or 默认值: 3.5
+        r'[Dd]efault[s]?\s*(?:value|is|:)?\s*([\-]?\d+\.?\d*)',  # Default value is 1
+        r'默认[为是：:]\s*([\-]?\d+\.?\d*)',  # 默认为 1
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, description)
+        if match:
+            val_str = match.group(1)
+            try:
+                if param_type == "integer":
+                    return int(float(val_str))  # Handle "1.0" as integer
+                elif param_type == "number":
+                    return float(val_str)
+            except (ValueError, TypeError):
+                continue
+    
+    return None
+
+
+def parse_range_from_description(description: str) -> tuple[Any, Any]:
+    """
+    Parse min/max range from parameter description.
+    Common patterns: "[1, 4]", "[1 ~ 4]", "取值范围：[1, 4]"
+    
+    Args:
+        description: Parameter description text
+        
+    Returns:
+        tuple: (minimum, maximum) or (None, None) if not found
+    """
+    import re
+    
+    # Patterns for range values
+    patterns = [
+        r'[\[【]\s*([\-]?\d+\.?\d*)\s*[,，~～]\s*([\-]?\d+\.?\d*)\s*[\]】]',  # [1, 4] or [1 ~ 4]
+        r'取值范围[：:]\s*[\[【]?\s*([\-]?\d+\.?\d*)\s*[,，~～]\s*([\-]?\d+\.?\d*)',  # 取值范围：[1, 4]
+        r'[Rr]ange[：:]?\s*[\[（(]?\s*([\-]?\d+\.?\d*)\s*[-,~]\s*([\-]?\d+\.?\d*)',  # Range: [1, 4]
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, description)
+        if match:
+            try:
+                min_val = float(match.group(1))
+                max_val = float(match.group(2))
+                return min_val, max_val
+            except (ValueError, TypeError):
+                continue
+    
+    return None, None
+
+
 def param_to_comfyui_type(param: dict) -> tuple[Any, dict]:
     """
     Convert model_config parameter definition to ComfyUI INPUT_TYPES format.
@@ -221,6 +290,18 @@ def param_to_comfyui_type(param: dict) -> tuple[Any, dict]:
     minimum = param.get("minimum")
     maximum = param.get("maximum")
     required = param.get("required", False)
+    
+    # Try to parse default value from description if not explicitly set
+    if default is None and description and param_type in ("integer", "number"):
+        default = parse_default_from_description(description, param_type)
+    
+    # Try to parse min/max from description if not explicitly set
+    if (minimum is None or maximum is None) and description:
+        desc_min, desc_max = parse_range_from_description(description)
+        if minimum is None and desc_min is not None:
+            minimum = desc_min
+        if maximum is None and desc_max is not None:
+            maximum = desc_max
     
     options = {}
     
@@ -658,15 +739,19 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
             if input_image_data:
                 img = input_image_data
                 # Different models use different field names
-                if "flux" in model_id.lower():
+                model_id_lower = model_id.lower()
+                if "flux" in model_id_lower:
                     data["images"] = [img]
-                elif any(x in model_id.lower() for x in ["seedream4_0", "seedream4.0", "seedream-4.0"]):
+                elif any(x in model_id_lower for x in ["seedream4_0", "seedream4.0", "seedream-4.0"]):
                     # Seedream 4.0 uses "images" (plural, string[])
                     data["images"] = [img]
-                elif any(x in model_id.lower() for x in ["seedream_4_5", "seedream4.5", "seedream-4.5"]):
+                elif any(x in model_id_lower for x in ["seedream_4_5", "seedream4.5", "seedream-4.5"]):
                     # Seedream 4.5 uses "image" (singular, but array type)
                     data["image"] = [img]
-                elif "gemini" in model_id.lower():
+                elif "nano_banana" in model_id_lower:
+                    # Nano Banana Pro Light uses "images" (array type)
+                    data["images"] = [img]
+                elif "gemini" in model_id_lower:
                     # Gemini supports both image_urls and image_base64s
                     if img.startswith("data:"):
                         # Base64 format - extract data without prefix
@@ -679,14 +764,18 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
                     data["image"] = img
             
             # Add all other parameters with type coercion
+            logger.debug(f"[JieKou] Processing kwargs: {list(kwargs.keys())}")
             for key, value in kwargs.items():
                 if value is None:
+                    logger.debug(f"[JieKou] Skipping {key}: None value")
                     continue
                 if isinstance(value, str) and value.strip() == "":
+                    logger.debug(f"[JieKou] Skipping {key}: empty string")
                     continue
                 # Coerce value to correct type based on param definition
                 param_type = param_type_map.get(key, "string")
                 data[key] = coerce_param_value(value, param_type)
+                logger.debug(f"[JieKou] Added {key}: {type(data[key]).__name__}")
             
             # Log request
             log_data = {k: (v[:50] + "..." if isinstance(v, str) and len(v) > 100 else v) for k, v in data.items()}

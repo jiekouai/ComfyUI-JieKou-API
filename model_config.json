@@ -5670,10 +5670,8 @@
           "description": "指定此请求中要生成的最大图像数量。此参数仅在`sequential_image_generation`设置为`auto`时有效。\n  \n\n  取值范围：`[1, 15]`\n\n  <Tip>\n    说明\n\n    实际生成的图像数量受`max_images`和输入参考图像数量的影响。输入参考图像数量 + 生成图像数量 ≤ 15。\n  </Tip>",
           "required": false,
           "default": 15,
-          "enum": [
-            "auto",
-            "max_images"
-          ]
+          "minimum": 1,
+          "maximum": 15
         },
         {
           "name": "watermark",
