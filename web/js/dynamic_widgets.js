@@ -391,6 +391,12 @@ export async function initializeNode(node) {
     // Setup rich model combo with callback that receives model ID
     setupRichModelCombo(modelWidget, node, async (modelId) => {
         await renderDynamicWidgets(node, modelId);
+        // Update Kontext prompt hint after model change
+        if (window.JieKouMain && window.JieKouMain.setupKontextPromptHint) {
+            setTimeout(() => {
+                window.JieKouMain.setupKontextPromptHint(node);
+            }, 200);
+        }
     });
     
     // Initial render for current model
@@ -434,6 +440,13 @@ export async function initializeNode(node) {
                             widget.value = info.widgets_values[widget.name];
                         }
                     }
+                }
+                
+                // Update Kontext prompt hint after workflow load
+                if (window.JieKouMain && window.JieKouMain.setupKontextPromptHint) {
+                    setTimeout(() => {
+                        window.JieKouMain.setupKontextPromptHint(this);
+                    }, 200);
                 }
             }
         }, 100);

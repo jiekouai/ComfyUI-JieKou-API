@@ -652,6 +652,11 @@ app.registerExtension({
             // Setup size preset dynamic visibility
             setupSizePresetVisibility(node);
             
+            // Setup prompt hint for Kontext models (after dynamic widgets are initialized)
+            setTimeout(() => {
+                setupKontextPromptHint(node);
+            }, 500);
+            
             // T023: Initialize price display for this node
             if (ENABLE_PRICE_DISPLAY) {
                 try {
@@ -688,6 +693,126 @@ app.registerExtension({
         }
     }
 });
+
+// Export for use in dynamic_widgets.js
+if (typeof window !== "undefined") {
+    if (!window.JieKouMain) {
+        window.JieKouMain = {};
+    }
+}
+
+/**
+ * Setup prompt hint for Kontext models (English-only prompt)
+ * @param {Object} node - ComfyUI node
+ */
+function setupKontextPromptHint(node) {
+    if (!node) {
+        return;
+    }
+    
+    // Check if this is one of the specific Kontext models that need the hint
+    // Only FLUX.1 Kontext Dev and FLUX.1 Kontext Pro need the English-only prompt hint
+    // Node class names: "JieKouFlux1KontextDev" or "JieKouFlux1KontextPro"
+    const isKontextModel = node.comfyClass && (
+        node.comfyClass === "JieKouFlux1KontextDev" || 
+        node.comfyClass === "JieKouFlux1KontextPro"
+    );
+    
+    // Function to check and add hint
+    const checkAndAddHint = () => {
+        
+        // Find prompt widget
+        const promptWidget = node.widgets?.find(w => w.name === "prompt");
+        if (!promptWidget) {
+            // Retry after a short delay if prompt widget not ready
+            setTimeout(checkAndAddHint, 100);
+            return;
+        }
+        
+        // Check if hint already exists
+        const existingHint = node.widgets?.find(w => w.name === "_kontext_prompt_hint");
+        
+        if (isKontextModel && !existingHint) {
+            // Add hint widget before prompt widget
+            const promptIndex = node.widgets.indexOf(promptWidget);
+            
+            // Create a custom widget to display the hint
+            const hintWidget = {
+                name: "_kontext_prompt_hint",
+                type: "customtext",
+                draw: function(ctx, node, width, y, height) {
+                    ctx.save();
+                    ctx.fillStyle = "#ffa500"; // Orange color for warning
+                    ctx.font = "12px Arial";
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "middle";
+                    const text = "该模型只支持英文 prompt";
+                    const padding = 8;
+                    // Draw text only, no background
+                    ctx.fillText(text, padding, y + height / 2);
+                    ctx.restore();
+                },
+                computeSize: function() {
+                    return [200, 6]; // Width, height - small height to keep it close to prompt input
+                }
+            };
+            
+            // Insert hint widget before prompt widget
+            node.widgets.splice(promptIndex, 0, hintWidget);
+            
+            // Resize node to fit new widget
+            node.setSize([node.size[0], node.computeSize()[1]]);
+            node.setDirtyCanvas(true, true);
+        } else if (!isKontextModel && existingHint) {
+            // Remove hint if model changed to non-Kontext
+            const hintIndex = node.widgets.indexOf(existingHint);
+            node.widgets.splice(hintIndex, 1);
+            
+            // Resize node
+            node.setSize([node.size[0], node.computeSize()[1]]);
+            node.setDirtyCanvas(true, true);
+        }
+    };
+    
+    // Initial check - retry multiple times to ensure widgets are ready
+    // For dynamically generated nodes, we only need to check for prompt widget
+    let retryCount = 0;
+    const maxRetries = 15;
+    const initialCheck = () => {
+        const promptWidget = node.widgets?.find(w => w.name === "prompt");
+        
+        if (!promptWidget) {
+            retryCount++;
+            if (retryCount < maxRetries) {
+                setTimeout(initialCheck, 200);
+            }
+            return;
+        }
+        
+        // Widgets are ready, check and add hint
+        checkAndAddHint();
+    };
+    
+    setTimeout(initialCheck, 300);
+    
+    // For dynamically generated nodes, there's no model widget to monitor
+    // The hint is based on the node class name, so it doesn't need to change
+    // But we can still check again after a delay in case widgets are added dynamically
+    if (isKontextModel) {
+        // Check again after a longer delay in case dynamic widgets are added
+        setTimeout(() => {
+            checkAndAddHint();
+        }, 1000);
+    }
+}
+
+// Export function for use in dynamic_widgets.js
+if (typeof window !== "undefined") {
+    if (!window.JieKouMain) {
+        window.JieKouMain = {};
+    }
+    window.JieKouMain.setupKontextPromptHint = setupKontextPromptHint;
+}
 
 /**
  * Setup size preset visibility logic
@@ -740,8 +865,6 @@ function setupSizePresetVisibility(node) {
         // Update visibility
         updateCustomVisibility(value);
     };
-    
-    console.log("[JieKou] Size preset visibility setup complete");
 }
 
 /**

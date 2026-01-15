@@ -118,9 +118,6 @@ def register_image_nodes():
                     IMAGE_NODE_CLASS_MAPPINGS[class_name] = node_class
                     IMAGE_NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
                     
-                    # Debug: Log the CATEGORY for each node
-                    logger.info(f"[JieKou] Created node {class_name} -> CATEGORY={getattr(node_class, 'CATEGORY', 'N/A')}")
-                    
                 except Exception as e:
                     logger.error(f"[JieKou] Failed to create image node for {model.id} in {category}: {e}")
         

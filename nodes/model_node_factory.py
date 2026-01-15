@@ -1502,8 +1502,6 @@ def create_node_classes_from_config() -> tuple[dict, dict]:
                 
                 # Track category counts
                 category_counts[category] = category_counts.get(category, 0) + 1
-                
-                logger.debug(f"[JieKou] Created node class: {class_name} -> {model.name} in {category}")
         
         except Exception as e:
             logger.error(f"[JieKou] Failed to create node for {model.id}: {e}")
