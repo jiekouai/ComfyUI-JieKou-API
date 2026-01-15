@@ -54,6 +54,11 @@ def register_image_nodes():
         loader = get_model_config_loader()
         image_models = loader.get_image_models()
         
+        # Debug: Log all image models found
+        logger.info(f"[JieKou] Found {len(image_models)} image models to register")
+        for m in image_models:
+            logger.debug(f"[JieKou]   - {m.id}: categories={m.categories}")
+        
         # Track processed models to handle multi-category models only once
         processed_models = set()
         
