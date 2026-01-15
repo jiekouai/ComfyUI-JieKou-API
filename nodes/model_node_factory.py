@@ -502,9 +502,14 @@ def build_input_types(model_config: dict, categories: list) -> dict:
     is_video_model = any(cat.startswith("video_") for cat in categories)
     is_audio_model = any(cat.startswith("audio_") for cat in categories)
     
+    # Check if model uses task_id (like MJ remix/variation) - these don't need image upload
+    # They reference previous task results via task_id instead
+    param_names = {p.get("name", "") for p in model_config.get("parameters", [])}
+    uses_task_id = "task_id" in param_names
+    
     # For I2I/I2V models, add image inputs (both tensor and URL)
-    # Check if any category requires image input
-    needs_image_input = any(cat in ("image_edit", "video_i2v") for cat in categories)
+    # But skip for models that use task_id to reference previous tasks
+    needs_image_input = any(cat in ("image_edit", "video_i2v") for cat in categories) and not uses_task_id
     if needs_image_input:
         # Image tensor input - can connect from Load Image or other image nodes
         optional["image"] = ("IMAGE", {})
