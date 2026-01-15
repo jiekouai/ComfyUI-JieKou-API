@@ -260,17 +260,25 @@ class ModelConfigLoader:
         return list(self._models_by_category.keys())
     
     def get_image_models(self) -> list[ModelConfig]:
-        """Get all image generation models"""
+        """Get all image generation models (deduplicated)"""
+        seen_ids = set()
         result = []
         for cat in ["image_t2i", "image_edit", "image_tool"]:
-            result.extend(self.get_models_by_category(cat))
+            for model in self.get_models_by_category(cat):
+                if model.id not in seen_ids:
+                    seen_ids.add(model.id)
+                    result.append(model)
         return result
     
     def get_video_models(self) -> list[ModelConfig]:
-        """Get all video generation models"""
+        """Get all video generation models (deduplicated)"""
+        seen_ids = set()
         result = []
         for cat in ["video_t2v", "video_i2v", "video_v2v"]:
-            result.extend(self.get_models_by_category(cat))
+            for model in self.get_models_by_category(cat):
+                if model.id not in seen_ids:
+                    seen_ids.add(model.id)
+                    result.append(model)
         return result
     
     def get_audio_models(self) -> list[ModelConfig]:
