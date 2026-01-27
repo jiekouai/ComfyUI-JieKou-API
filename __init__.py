@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[JieKou]")
 
 # Plugin metadata
-__version__ = "1.2.2"  # Model-specific nodes with pricing display
+__version__ = "1.2.3"  # Model-specific nodes with pricing display
 __author__ = "JiekouAI"
 
 # ===== Web Directory for JavaScript Extensions =====
