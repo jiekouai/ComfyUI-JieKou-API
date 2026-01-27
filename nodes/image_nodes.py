@@ -435,7 +435,7 @@ class JieKouImageToImage:
                 "image_url": ("STRING", {
                     "default": "",
                     "placeholder": "输入图片 URL 或 base64 (优先使用)",
-                    "dynamicPrompts": True  # 允许右键转换为输入槽
+                    "dynamicPrompts": False  # URL 不能使用动态提示词，会截断
                 }),
                 # Hidden input for dynamic parameters (JSON string)
                 "_dynamic_params": ("STRING", {
@@ -767,7 +767,7 @@ class JieKouImageUpscale:
                 "image_url": ("STRING", {
                     "default": "",
                     "placeholder": "输入图片 URL 或 base64",
-                    "dynamicPrompts": True  # 允许右键转换为输入槽
+                    "dynamicPrompts": False  # URL 不能使用动态提示词，会截断
                 }),
                 "save_to_disk": ("BOOLEAN", {
                     "default": True,
@@ -893,7 +893,7 @@ class JieKouRemoveBackground:
                 "image_url": ("STRING", {
                     "default": "",
                     "placeholder": "输入图片 URL 或 base64",
-                    "dynamicPrompts": True  # 允许右键转换为输入槽
+                    "dynamicPrompts": False  # URL 不能使用动态提示词，会截断
                 }),
                 "save_to_disk": ("BOOLEAN", {
                     "default": True,

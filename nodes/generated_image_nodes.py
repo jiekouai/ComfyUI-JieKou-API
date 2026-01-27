@@ -115,10 +115,10 @@ def register_image_nodes():
                     # Display name is the same for all categories (no suffix)
                     display_name = model.name or model.id
                     
-                    IMAGE_NODE_CLASS_MAPPINGS[class_name] = node_class
+                IMAGE_NODE_CLASS_MAPPINGS[class_name] = node_class
                     IMAGE_NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
                     
-                except Exception as e:
+            except Exception as e:
                     logger.error(f"[JieKou] Failed to create image node for {model.id} in {category}: {e}")
         
         logger.info(f"[JieKou] Registered {len(IMAGE_NODE_CLASS_MAPPINGS)} image model nodes")

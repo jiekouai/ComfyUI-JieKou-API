@@ -6152,11 +6152,7 @@
           "name": "end_image_url",
           "type": "string",
           "description": "用于视频生成的结束帧图片的 URL。\n  \n  <Warning>仅当 `mode` 为 `Professional` 时可用。</Warning>",
-          "required": false,
-          "enum": [
-            "mode",
-            "Professional"
-          ]
+          "required": false
         },
         {
           "name": "prompt",
@@ -6182,13 +6178,12 @@
         },
         {
           "name": "guidance_scale",
-          "type": "float",
+          "type": "number",
           "description": "指导强度参数，控制生成内容与提示词的贴合程度。\n\n  取值范围：`0 <= x <= 1`。默认值：`0.5`。",
           "required": false,
-          "enum": [
-            "0 <= x <= 1",
-            "0.5"
-          ]
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1
         }
       ],
       "product_ids": [
@@ -6221,12 +6216,7 @@
           "name": "image",
           "type": "string",
           "description": "视频的首帧图片；支持的图片格式包括 `.jpg`、`.jpeg`、`.png`；图片文件大小不得超过 10MB，分辨率不小于 300*300 像素。",
-          "required": true,
-          "enum": [
-            ".jpg",
-            ".jpeg",
-            ".png"
-          ]
+          "required": true
         },
         {
           "name": "prompt",
@@ -6277,12 +6267,7 @@
           "name": "image",
           "type": "string",
           "description": "视频的首帧图片。支持的图片格式包括 `.jpg`、`.jpeg`、`.png`。图片文件大小不超过 10MB，分辨率不低于 300×300 像素。",
-          "required": true,
-          "enum": [
-            ".jpg",
-            ".jpeg",
-            ".png"
-          ]
+          "required": true
         },
         {
           "name": "prompt",
@@ -6360,12 +6345,7 @@
           "name": "image",
           "type": "string",
           "description": "视频的首帧图片；支持的图片格式包括 `.jpg`、`.jpeg`、`.png`；图片文件大小不得超过 10MB，分辨率不小于 300*300 像素。",
-          "required": true,
-          "enum": [
-            ".jpg",
-            ".jpeg",
-            ".png"
-          ]
+          "required": true
         },
         {
           "name": "prompt",
@@ -6771,10 +6751,10 @@
         },
         {
           "name": "professional",
-          "type": "bool",
+          "type": "boolean",
           "description": "该参数支持是否使用 Pro 版本。如果未提供，则默认值为 false。",
           "required": false,
-          "default": "false"
+          "default": false
         }
       ],
       "product_ids": [
@@ -7176,15 +7156,7 @@
           "name": "image",
           "type": "string",
           "description": "输入图像支持 URL 和 Base64 格式。\n\n  - 图片格式：`jpeg`、`png`、`webp`、`bmp`、`tiff`、`gif`。\n  - 图片文件大小不能超过 30MB。\n  - 图片的短边需大于 300 像素，长边需小于 6000 像素。\n  - 宽高比要求在 0.4 到 2.5 之间。",
-          "required": true,
-          "enum": [
-            "jpeg",
-            "png",
-            "webp",
-            "bmp",
-            "tiff",
-            "gif"
-          ]
+          "required": true
         },
         {
           "name": "resolution",
@@ -7217,15 +7189,7 @@
           "name": "last_image",
           "type": "string",
           "description": "结束图像，支持 URL 和 Base64 格式。\n\n  - 图片格式：`jpeg`、`png`、`webp`、`bmp`、`tiff`、`gif`。\n  - 图片文件大小不能超过 30MB。\n  - 图片的短边需大于 300 像素，长边需小于 6000 像素。\n  - 宽高比要求在 0.4 到 2.5 之间。\n\n  传入的首尾帧图片可相同。首尾帧图片的宽高比不一致时，以首帧图片为主，尾帧图片会自动",
-          "required": false,
-          "enum": [
-            "jpeg",
-            "png",
-            "webp",
-            "bmp",
-            "tiff",
-            "gif"
-          ]
+          "required": false
         },
         {
           "name": "camera_fixed",
@@ -7321,29 +7285,13 @@
           "name": "image",
           "type": "string",
           "description": "输入图像支持 URL 和 Base64 格式。\n\n  - 图片格式：`jpeg`、`png`、`webp`、`bmp`、`tiff`、`gif`。\n  - 图片文件大小不能超过 30MB。\n  - 图片的短边需大于 300 像素，长边需小于 6000 像素。\n  - 宽高比要求在 0.4 到 2.5 之间。",
-          "required": true,
-          "enum": [
-            "jpeg",
-            "png",
-            "webp",
-            "bmp",
-            "tiff",
-            "gif"
-          ]
+          "required": true
         },
         {
           "name": "last_image",
           "type": "string",
           "description": "结束图像，支持 URL 和 Base64 格式。\n\n  - 图片格式：`jpeg`、`png`、`webp`、`bmp`、`tiff`、`gif`。\n  - 图片文件大小不能超过 30MB。\n  - 图片的短边需大于 300 像素，长边需小于 6000 像素。\n  - 宽高比要求在 0.4 到 2.5 之间。\n\n  传入的首尾帧图片可相同。首尾帧图片的宽高比不一致时，以首帧图片为主，尾帧图片会自动",
-          "required": false,
-          "enum": [
-            "jpeg",
-            "png",
-            "webp",
-            "bmp",
-            "tiff",
-            "gif"
-          ]
+          "required": false
         },
         {
           "name": "resolution",
@@ -7487,11 +7435,10 @@
         {
           "name": "duration_seconds",
           "type": "integer",
-          "description": "您想要生成的视频文件的长度（秒）。\n  \n  枚举值: `4`、`6`、`8`。默认值为 `8`。",
+          "description": "您想要生成的视频文件的长度（秒）。目前仅支持 `8`。",
           "required": false,
+          "default": 8,
           "enum": [
-            4,
-            6,
             8
           ]
         },
@@ -7737,8 +7684,7 @@
           "enum": [
             4,
             6,
-            8,
-            "reference_images"
+            8
           ]
         },
         {
@@ -7866,7 +7812,7 @@
         },
         {
           "name": "bgm",
-          "type": "boolean",
+          "type": "string",
           "description": "是否为生成的视频添加背景音乐。默认值：`false`<br/>\n  可选值：`true`、`false`\n  \n  当设置为 true 时，系统将自动添加合适的 BGM。BGM 无时长限制，系统会自动适配。",
           "required": false,
           "enum": [
@@ -7959,7 +7905,7 @@
         },
         {
           "name": "bgm",
-          "type": "boolean",
+          "type": "string",
           "description": "是否为生成的视频添加背景音乐。默认值：`false`<br/>\n  可选值：`true`、`false`\n  \n  当设置为 true 时，系统将自动添加合适的 BGM。BGM 无时长限制，系统会自动适配。",
           "required": false,
           "enum": [
@@ -8009,41 +7955,23 @@
           "required": false
         },
         {
-          "name": "width",
-          "type": "integer",
-          "description": "输出视频的宽度。\n\n  枚举值：`480`、`720`、`832`、`1280`。\n\n  默认：`832`。如果未指定宽度或高度，宽度和高度将被强制设置为 `832` 和 `480`。",
+          "name": "size_preset",
+          "type": "string",
+          "description": "视频尺寸预设。\n\n  支持：\n    - `480p_横向` (832×480)\n    - `480p_竖向` (480×832)\n    - `720p_横向` (1280×720)\n    - `720p_竖向` (720×1280)",
           "required": false,
           "enum": [
-            480,
-            720,
-            832,
-            1280
-          ]
-        },
-        {
-          "name": "height",
-          "type": "integer",
-          "description": "输出视频的高度。\n\n  支持： \n    - (480p) 宽度为 `480` 时高度设置为 `832`\n    - (480p) 宽度为 `832` 时高度设置为 `480`\n    - (720p) 宽度为 `720` 时高度设置为 `1280`\n    - (720p) 宽度为 `1280` 时高度设置为 `720`\n\n  默认：`480`。如果未指定宽度或高度，宽度和高度将被强制设置为 `",
-          "required": false,
-          "enum": [
-            480,
-            832,
-            720,
-            1280,
-            "宽度 x 高度"
-          ]
+            "480p_横向",
+            "480p_竖向",
+            "720p_横向",
+            "720p_竖向"
+          ],
+          "default": "480p_横向"
         },
         {
           "name": "loras",
           "type": "object[]",
           "description": "应用于视频生成的 LoRA 模型。\n\n  支持最多指定 **3 个 LoRA 模型**。\n  <Expandable title=\"properties\" defaultOpen={false}>\n\n    <ParamField body=\"path\" type=\"string\" required={true}>\n      LoRA 模型的路径。您可以指定来自 Hugging Face 的 L",
           "required": false
-        },
-        {
-          "name": "scale",
-          "type": "number",
-          "description": "LoRA 的缩放值。值越大，LoRA 效果更明显。number(float32) 类型，取值范围：`[0, 4.0]`。",
-          "required": true
         },
         {
           "name": "seed",
@@ -8055,25 +7983,29 @@
           "name": "steps",
           "type": "integer",
           "description": "迭代步数，图片创建过程的迭代数，取值范围：`[1, 40]`。默认：`30`。",
-          "required": false
+          "required": false,
+          "default": 30
         },
         {
           "name": "guidance_scale",
           "type": "float",
           "description": "引导缩放参数控制生成内容对提示的跟随程度。取值范围：`[0, 10]`。默认：`5.0`。",
-          "required": false
+          "required": false,
+          "default": 5.0
         },
         {
           "name": "flow_shift",
           "type": "float",
           "description": "flow_shift 参数主要影响视频中物体运动的速度和幅度。更高的值产生更明显和更快的运动，而较低的值使运动更慢更细微。\n\n  取值范围：`[1, 10]`。默认：`5.0`。",
-          "required": false
+          "required": false,
+          "default": 5.0
         },
         {
           "name": "enable_safety_checker",
           "type": "boolean",
           "description": "enable_safety_checker 参数控制是否对生成的内容应用安全过滤器。启用时，它有助于从视频输出中过滤掉潜在的有害或不当内容。\n\n  默认：`true`。",
-          "required": false
+          "required": false,
+          "default": true
         },
         {
           "name": "fast_mode",
@@ -8152,57 +8084,74 @@
       "response_type": "task_id",
       "parameters": [
         {
-          "name": "negative_prompt",
-          "type": "string",
-          "description": "反向提示词，用来描述不希望在视频画面中看到的内容，可以对视频画面进行限制。\n\n      支持中英文，长度不超过 500 个字符，超过部分会自动截断。\n\n      示例值：低分辨率、错误、最差质量、低质量、残缺、多余的手指、比例不良等。",
-          "required": false
-        },
-        {
-          "name": "img_url",
-          "type": "string",
-          "description": "生成视频时所使用的首帧图像的 URL。\n\n      URL 需为公网可访问地址，支持 HTTP 或 HTTPS 协议。\n\n      图像限制：\n\n      - 图像格式：JPEG、JPG、PNG（不支持透明通道）、BMP、WEBP。\n      - 图像分辨率：图像的宽度和高度范围为[360, 2000]，单位为像素。\n      - 文件大小：不超过 10MB。",
-          "required": true
-        },
-        {
-          "name": "duration",
-          "type": "integer",
-          "description": "生成视频的时长。\n\n      - `480P` 和 `720P` 分辨率，支持时长为 `5` 或 `8` 秒。\n      - `1080P` 分辨率时，时长固定为 5 秒。\n\n      默认值：`5`。",
-          "required": false,
-          "enum": [
-            "480P",
-            "720P",
-            5,
-            8,
-            "1080P"
+          "name": "input",
+          "type": "object",
+          "description": "输入的基本信息",
+          "required": true,
+          "children": [
+            {
+              "name": "prompt",
+              "type": "string",
+              "description": "文本提示词。支持中英文，长度不超过 800 个字符。",
+              "required": false
+            },
+            {
+              "name": "negative_prompt",
+              "type": "string",
+              "description": "反向提示词，用来描述不希望在视频画面中看到的内容。",
+              "required": false
+            },
+            {
+              "name": "img_url",
+              "type": "string",
+              "description": "首帧图像的 URL",
+              "required": true
+            }
           ]
         },
         {
-          "name": "prompt_extend",
-          "type": "bool",
-          "description": "是否开启 prompt 智能改写。开启后使用大模型对输入 prompt 进行智能改写。对于较短的 prompt 生成效果提升明显，但会增加耗时。\n\n      - `true`：默认值，开启智能改写。\n      - `false`：不开启智能改写。\n\n      示例值：true。",
-          "required": false,
-          "enum": [
-            "true",
-            "false"
+          "name": "parameters",
+          "type": "object",
+          "description": "视频处理参数",
+          "required": true,
+          "children": [
+            {
+              "name": "resolution",
+              "type": "string",
+              "description": "生成视频的分辨率档位",
+              "required": true,
+              "default": "1080P",
+              "enum": [
+                "480P",
+                "720P",
+                "1080P"
+              ]
+            },
+            {
+              "name": "duration",
+              "type": "integer",
+              "description": "生成视频的时长（秒）",
+              "required": false,
+              "default": 5,
+              "enum": [
+                5,
+                8
+              ]
+            },
+            {
+              "name": "prompt_extend",
+              "type": "boolean",
+              "description": "是否开启 prompt 智能改写",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "seed",
+              "type": "integer",
+              "description": "随机数种子，取值范围 [0, 2147483647]",
+              "required": false
+            }
           ]
-        },
-        {
-          "name": "seed",
-          "type": "integer",
-          "description": "随机数种子，用于控制模型生成内容的随机性。取值范围为 `[0, 2147483647]`。\n\n      如果不提供，则算法自动生成一个随机数作为种子。如果希望生成内容保持相对稳定，可以使用相同的 seed 参数值。\n\n      示例值：12345。",
-          "required": false
-        },
-        {
-          "name": "loras",
-          "type": "array",
-          "description": "要应用的 LoRA 列表（最多 3 个）。\n\n      <Expandable title=\"参数说明\" defaultOpen={false}>\n        <ParamField body=\"path\" type=\"string\" required={true}>\n          LoRA 模型的路径",
-          "required": false
-        },
-        {
-          "name": "scale",
-          "type": "float",
-          "description": "LoRA 模型的作用强度\n\n          取值范围：0.0 ~ 4.0",
-          "required": true
         }
       ],
       "product_ids": [
@@ -8288,58 +8237,87 @@
       "response_type": "task_id",
       "parameters": [
         {
-          "name": "negative_prompt",
-          "type": "string",
-          "description": "反向提示词，用于描述生成视频时需要避开的内容，可对画面进行规避或限制。\n\n      支持中英文，最长500字符，超出部分自动截断。\n\n      示例值：低分辨率、错误、最差质量、低质量、残缺、多余的手指、比例不良等。",
-          "required": false
-        },
-        {
-          "name": "img_url",
-          "type": "string",
-          "description": "用于视频生成的起始帧图片的URL。\n\n      要求URL可公开访问，并支持HTTP或HTTPS协议。\n\n      图片限制：\n\n      - 图片格式：JPEG、JPG、PNG（不支持透明）、BMP、WEBP；\n      - 尺寸要求：图片宽高需在[360, 2000]像素范围内；\n      - 文件大小不得超过10MB。",
-          "required": true
-        },
-        {
-          "name": "audio_url",
-          "type": "string",
-          "description": "用于视频生成的音频文件URL。详细用法请参考音频设置说明。\n\n      音频要求：\n\n      - 格式：wav、mp3；\n      - 时长：3-30秒；\n      - 文件大小不超过15MB。\n\n      超长处理：若音频时长超过目标视频时长（如5秒或10秒），仅保留前5秒或前10秒，其余部分自动舍弃；若音频时长短于视频时长，超出部分为无声视频。例如音频为3秒，视频为5秒，则输出视频",
-          "required": false
-        },
-        {
-          "name": "duration",
-          "type": "integer",
-          "description": "指定生成视频的时长，支持值：`5` 或 `10`（单位：秒）。\n\n      默认值：`5`。",
-          "required": false,
-          "enum": [
-            5,
-            10
+          "name": "input",
+          "type": "object",
+          "description": "基础输入信息",
+          "required": true,
+          "children": [
+            {
+              "name": "prompt",
+              "type": "string",
+              "description": "文本正向提示词。",
+              "required": false
+            },
+            {
+              "name": "negative_prompt",
+              "type": "string",
+              "description": "反向提示词，最长500字符。",
+              "required": false
+            },
+            {
+              "name": "img_url",
+              "type": "string",
+              "description": "起始帧图片的URL",
+              "required": true
+            },
+            {
+              "name": "audio_url",
+              "type": "string",
+              "description": "音频文件URL",
+              "required": false
+            }
           ]
         },
         {
-          "name": "prompt_extend",
-          "type": "bool",
-          "description": "是否开启prompt智能改写。开启后，将使用大模型对输入prompt进行智能改写，对较短提示词可显著提升生成效果，但处理时长也会增加。\n\n      - `true`：默认，开启智能改写；\n      - `false`：不改写。\n\n      示例值：true。",
+          "name": "parameters",
+          "type": "object",
+          "description": "视频处理参数",
           "required": false,
-          "enum": [
-            "true",
-            "false"
+          "children": [
+            {
+              "name": "resolution",
+              "type": "string",
+              "description": "生成视频的分辨率档位",
+              "required": false,
+              "default": "1080P",
+              "enum": [
+                "480P",
+                "720P",
+                "1080P"
+              ]
+            },
+            {
+              "name": "duration",
+              "type": "integer",
+              "description": "生成视频的时长（秒）",
+              "required": false,
+              "default": 5,
+              "enum": [
+                5,
+                10
+              ]
+            },
+            {
+              "name": "prompt_extend",
+              "type": "boolean",
+              "description": "是否开启prompt智能改写",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "audio",
+              "type": "boolean",
+              "description": "是否添加音频",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "seed",
+              "type": "integer",
+              "description": "随机数种子，取值范围 [0, 2147483647]",
+              "required": false
+            }
           ]
-        },
-        {
-          "name": "audio",
-          "type": "boolean",
-          "description": "是否添加音频。\n\n      参数优先级：audio_url > audio，仅当 audio_url 为空时有效。\n\n      - `true`：默认，自动为视频添加配音；\n      - `false`：不添加音频，输出为静音视频。\n\n      示例值：true。",
-          "required": false,
-          "enum": [
-            "true",
-            "false"
-          ]
-        },
-        {
-          "name": "seed",
-          "type": "integer",
-          "description": "随机种子，用于控制模型生成内容的随机性，取值范围：[0, 2147483647]。\n\n      不填写时将自动生成随机数。若期望生成结果较为稳定，可传入相同seed值。\n\n      示例值：12345。",
-          "required": false
         }
       ],
       "product_ids": [
@@ -8513,44 +8491,33 @@
       "response_type": "task_id",
       "parameters": [
         {
-          "name": "model_name",
+          "name": "aspect_ratio",
           "type": "string",
-          "description": "模型名称。\n\n  支持：`hunyuan-video-fast`。",
-          "required": true
-        },
-        {
-          "name": "width",
-          "type": "integer",
-          "description": "输出视频的宽度。\n\n  支持：`720`、`1280`。",
+          "description": "视频尺寸比例。\n\n  支持：\n    - `16:9` (横向 1280x720)\n    - `9:16` (竖向 720x1280)",
           "required": true,
           "enum": [
-            720,
-            1280
-          ]
-        },
-        {
-          "name": "height",
-          "type": "integer",
-          "description": "输出视频的高度。\n\n  支持：\n    - 当 `width` 为 `1280` 时，`height` 为 `720`\n    - 当 `width` 为 `720` 时，`height` 为 `1280`",
-          "required": true,
-          "enum": [
-            "width",
-            1280,
-            "height",
-            720
-          ]
+            "16:9",
+            "9:16"
+          ],
+          "default": "16:9"
         },
         {
           "name": "seed",
           "type": "integer",
           "description": "随机种子，用于生成噪声，使生成结果可复现。相同的种子和参数会产生相同的内容。\n\n  取值范围：`-1 <= x <= 9999999999`。",
-          "required": true
+          "required": false,
+          "default": -1,
+          "minimum": -1,
+          "maximum": 9999999999
         },
         {
           "name": "steps",
           "type": "integer",
           "description": "去噪步数。步数越多通常生成效果越好，但耗时也更长。\n\n  取值范围：`2 <= x <= 30`。",
-          "required": true
+          "required": true,
+          "default": 20,
+          "minimum": 2,
+          "maximum": 30
         },
         {
           "name": "prompt",
@@ -8610,13 +8577,12 @@
         },
         {
           "name": "guidance_scale",
-          "type": "float",
+          "type": "number",
           "description": "指导强度参数，控制生成内容与提示词的贴合程度。\n\n  取值范围：`0 <= x <= 1`。默认值：`0.5`。",
           "required": false,
-          "enum": [
-            "0 <= x <= 1",
-            "0.5"
-          ]
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1
         }
       ],
       "product_ids": [
@@ -9062,10 +9028,10 @@
         },
         {
           "name": "professional",
-          "type": "bool",
+          "type": "boolean",
           "description": "该参数支持是否使用 Pro 版本。如果未提供，则默认值为 false。",
           "required": false,
-          "default": "false"
+          "default": false
         }
       ],
       "product_ids": [
@@ -10161,7 +10127,7 @@
         },
         {
           "name": "bgm",
-          "type": "boolean",
+          "type": "string",
           "description": "是否为生成的视频添加背景音乐。默认值：`false`<br/>\n  可选值：`true`、`false`\n  \n  当设置为 true 时，系统将自动添加合适的 BGM。BGM 无时长限制，系统会自动适配。",
           "required": false,
           "enum": [
@@ -10251,7 +10217,7 @@
         },
         {
           "name": "bgm",
-          "type": "boolean",
+          "type": "string",
           "description": "是否为生成的视频添加背景音乐。默认值：`false`<br/>\n  可选值：`true`、`false`\n  \n  当设置为 true 时，系统将自动添加合适的 BGM。BGM 无时长限制，系统会自动适配。",
           "required": false,
           "enum": [
@@ -10355,7 +10321,7 @@
         },
         {
           "name": "bgm",
-          "type": "boolean",
+          "type": "string",
           "description": "是否为生成的视频添加背景音乐。默认值：`false`<br/>\n  可选值：`true`、`false`\n  \n  当设置为 true 时，系统将自动添加合适的 BGM。BGM 无时长限制，系统会自动适配。",
           "required": false,
           "enum": [
@@ -10445,7 +10411,7 @@
         },
         {
           "name": "bgm",
-          "type": "boolean",
+          "type": "string",
           "description": "是否为生成的视频添加背景音乐。默认值：`false`<br/>\n  可选值：`true`、`false`\n  \n  当设置为 true 时，系统将自动添加合适的 BGM。BGM 无时长限制，系统会自动适配。",
           "required": false,
           "enum": [
@@ -10526,7 +10492,7 @@
         },
         {
           "name": "bgm",
-          "type": "boolean",
+          "type": "string",
           "description": "是否为生成的视频添加背景音乐。默认值：`false`<br/>\n  可选值：`true`、`false`\n  \n  当设置为 true 时，系统将自动添加合适的 BGM。BGM 无时长限制，系统会自动适配。",
           "required": false,
           "enum": [
@@ -10570,40 +10536,23 @@
           "required": false
         },
         {
-          "name": "width",
-          "type": "integer",
-          "description": "输出视频的宽度。\n\n  枚举值：`480`、`720`、`832`、`1280`。 \n  \n  默认：`832`。如果未指定宽度或高度，宽度和高度将被强制设置为 `832` 和 `480`。",
+          "name": "size_preset",
+          "type": "string",
+          "description": "视频尺寸预设。\n\n  支持：\n    - `480p_横向` (832×480)\n    - `480p_竖向` (480×832)\n    - `720p_横向` (1280×720)\n    - `720p_竖向` (720×1280)",
           "required": false,
           "enum": [
-            480,
-            720,
-            832,
-            1280
-          ]
-        },
-        {
-          "name": "height",
-          "type": "integer",
-          "description": "输出视频的高度。\n\n  支持： \n    - (480p) 宽度为 `480` 时高度设置为 `832`\n    - (480p) 宽度为 `832` 时高度设置为 `480`\n    - (720p) 宽度为 `720` 时高度设置为 `1280`\n    - (720p) 宽度为 `1280` 时高度设置为 `720`\n  \n  默认：`480`。如果未指定宽度或高度，宽度和高度将被强制设置为",
-          "required": false,
-          "enum": [
-            480,
-            832,
-            720,
-            1280
-          ]
+            "480p_横向",
+            "480p_竖向",
+            "720p_横向",
+            "720p_竖向"
+          ],
+          "default": "480p_横向"
         },
         {
           "name": "loras",
           "type": "object[]",
           "description": "应用于视频生成的 LoRA 模型。\n\n  支持最多指定 **3 个 LoRA 模型**。\n  <Expandable title=\"properties\" defaultOpen={false}>\n\n    <ParamField body=\"path\" type=\"string\" required={true}>\n      LoRA 模型的路径。您可以指定来自 Hugging Face 的 L",
           "required": false
-        },
-        {
-          "name": "scale",
-          "type": "number",
-          "description": "LoRA 的缩放值。值越大，LoRA 效果更明显。number(float32) 类型，取值范围：`[0, 4.0]`。",
-          "required": true
         },
         {
           "name": "seed",
@@ -10615,25 +10564,29 @@
           "name": "steps",
           "type": "integer",
           "description": "迭代步数，图片创建过程的迭代数，取值范围：`[1, 40]`。默认：`30`。",
-          "required": false
+          "required": false,
+          "default": 30
         },
         {
           "name": "guidance_scale",
           "type": "float",
           "description": "引导缩放参数控制生成内容对提示的跟随程度。取值范围：`[0, 10]`。默认：`5.0`。",
-          "required": false
+          "required": false,
+          "default": 5.0
         },
         {
           "name": "flow_shift",
           "type": "float",
           "description": "flow_shift 参数主要影响视频中物体运动的速度和幅度。更高的值产生更明显和更快的运动，而较低的值使运动更慢更细微。\n\n  取值范围：`[1, 10]`。默认：`5.0`。",
-          "required": false
+          "required": false,
+          "default": 5.0
         },
         {
           "name": "enable_safety_checker",
           "type": "boolean",
           "description": "enable_safety_checker 参数控制是否对生成的内容应用安全过滤器。启用时，它有助于从视频输出中过滤掉潜在的有害或不当内容。\n\n  默认：`true`。",
-          "required": false
+          "required": false,
+          "default": true
         },
         {
           "name": "fast_mode",
@@ -10724,51 +10677,75 @@
       "response_type": "task_id",
       "parameters": [
         {
-          "name": "negative_prompt",
-          "type": "string",
-          "description": "反向提示词，用来描述不希望在视频画面中看到的内容，可以对视频画面进行限制。\n\n      支持中英文，长度不超过 500 个字符，超过部分会自动截断。\n\n      示例值：低分辨率、错误、最差质量、低质量、残缺、多余的手指、比例不良等。",
-          "required": false
-        },
-        {
-          "name": "duration",
-          "type": "integer",
-          "description": "生成视频的时长。\n      - `480P` 和 `720P` 分辨率下，可选时长为 `5` 或 `8` 秒。\n      - `1080P` 分辨率下，时长固定为 `5` 秒。\n\n      默认值：`5`。",
-          "required": false,
-          "enum": [
-            "480P",
-            "720P",
-            5,
-            8,
-            "1080P"
+          "name": "input",
+          "type": "object",
+          "description": "输入的基本信息",
+          "required": true,
+          "children": [
+            {
+              "name": "prompt",
+              "type": "string",
+              "description": "文本提示词。支持中英文，长度不超过 800 个字符。",
+              "required": true
+            },
+            {
+              "name": "negative_prompt",
+              "type": "string",
+              "description": "反向提示词，用来描述不希望在视频画面中看到的内容。",
+              "required": false
+            }
           ]
         },
         {
-          "name": "prompt_extend",
-          "type": "bool",
-          "description": "是否开启 prompt 智能改写。开启后使用大模型对输入 prompt 进行智能改写。对于较短的 prompt 生成效果提升明显，但会增加耗时。\n\n      - `true`：默认值，开启智能改写。\n      - `false`：不开启智能改写。",
-          "required": false,
-          "enum": [
-            "true",
-            "false"
+          "name": "parameters",
+          "type": "object",
+          "description": "视频处理参数",
+          "required": true,
+          "children": [
+            {
+              "name": "size",
+              "type": "string",
+              "description": "视频分辨率，格式为宽*高",
+              "required": true,
+              "default": "1920*1080",
+              "enum": [
+                "832*480",
+                "480*832",
+                "624*624",
+                "1280*720",
+                "720*1280",
+                "1920*1080",
+                "1080*1920",
+                "1440*1440",
+                "1632*1248",
+                "1248*1632"
+              ]
+            },
+            {
+              "name": "duration",
+              "type": "integer",
+              "description": "生成视频的时长（秒）",
+              "required": false,
+              "default": 5,
+              "enum": [
+                5,
+                8
+              ]
+            },
+            {
+              "name": "prompt_extend",
+              "type": "boolean",
+              "description": "是否开启 prompt 智能改写",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "seed",
+              "type": "integer",
+              "description": "随机数种子，取值范围 [0, 2147483647]",
+              "required": false
+            }
           ]
-        },
-        {
-          "name": "seed",
-          "type": "integer",
-          "description": "随机数种子，用于控制模型生成内容的随机性。取值范围为 `[0, 2147483647]`。\n\n      如果不提供，则算法自动生成一个随机数作为种子。如果希望生成内容保持相对稳定，可以使用相同的 seed 参数值。",
-          "required": false
-        },
-        {
-          "name": "loras",
-          "type": "array",
-          "description": "需要应用的 LoRA 模型列表（最多 3 个）。\n\n      <Expandable title=\"properties\" defaultOpen={false}>\n        <ParamField body=\"path\" type=\"string\" required={true}>\n          LoRA 模型的路径",
-          "required": false
-        },
-        {
-          "name": "scale",
-          "type": "float",
-          "description": "LoRA 模型的权重系数\n\n          取值范围：0.0 ~ 4.0",
-          "required": true
         }
       ],
       "product_ids": [
@@ -10854,52 +10831,91 @@
       "response_type": "task_id",
       "parameters": [
         {
-          "name": "negative_prompt",
-          "type": "string",
-          "description": "反向提示词，用于描述生成视频时需要避开的内容，可实现对画面的规避或限制。\n\n      支持中英文，最长500字符，超出部分自动截断。\n\n      示例值：低分辨率、错误、最差质量、低质量、残缺、多余的手指、比例不良等。",
-          "required": false
-        },
-        {
-          "name": "audio_url",
-          "type": "string",
-          "description": "用于视频生成的自定义音频文件URL。使用方法详见音频设置说明。\n\n      音频要求：\n\n      - 格式：wav、mp3。\n      - 时长：3~30秒。\n      - 文件大小：不超过15MB。\n\n      超长处理：若音频时长超过目标视频时长（如5秒或10秒），仅保留前5秒或前10秒，其余部分自动舍弃；若音频时长短于视频时长，超出部分为无声视频。例如音频为3秒、视频为5秒，则输",
-          "required": false
-        },
-        {
-          "name": "duration",
-          "type": "integer",
-          "description": "输出视频的时长，可选值：`5`秒、`10`秒。\n\n      默认值为`5`。",
-          "required": false,
-          "enum": [
-            5,
-            10
+          "name": "input",
+          "type": "object",
+          "description": "基础输入信息",
+          "required": true,
+          "children": [
+            {
+              "name": "prompt",
+              "type": "string",
+              "description": "文本正向提示词。支持中英文，最长 2000 个字符。",
+              "required": true
+            },
+            {
+              "name": "negative_prompt",
+              "type": "string",
+              "description": "反向提示词，最长500字符。",
+              "required": false
+            },
+            {
+              "name": "audio_url",
+              "type": "string",
+              "description": "自定义音频文件URL",
+              "required": false
+            }
           ]
         },
         {
-          "name": "prompt_extend",
-          "type": "bool",
-          "description": "是否开启prompt智能改写。开启后，将使用大模型自动改写输入prompt，对于较短提示词提升生成效果，但处理时长会增加。\n\n      - `true`：默认，开启智能改写\n      - `false`：不改写",
+          "name": "parameters",
+          "type": "object",
+          "description": "视频处理参数",
           "required": false,
-          "enum": [
-            "true",
-            "false"
+          "children": [
+            {
+              "name": "size",
+              "type": "string",
+              "description": "视频分辨率，格式为宽*高",
+              "required": false,
+              "default": "1920*1080",
+              "enum": [
+                "832*480",
+                "480*832",
+                "624*624",
+                "1280*720",
+                "720*1280",
+                "960*960",
+                "1088*832",
+                "832*1088",
+                "1920*1080",
+                "1080*1920",
+                "1440*1440",
+                "1632*1248",
+                "1248*1632"
+              ]
+            },
+            {
+              "name": "duration",
+              "type": "integer",
+              "description": "输出视频的时长（秒）",
+              "required": false,
+              "default": 5,
+              "enum": [
+                5,
+                10
+              ]
+            },
+            {
+              "name": "prompt_extend",
+              "type": "boolean",
+              "description": "是否开启prompt智能改写",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "audio",
+              "type": "boolean",
+              "description": "是否添加音频",
+              "required": false,
+              "default": true
+            },
+            {
+              "name": "seed",
+              "type": "integer",
+              "description": "随机数种子，取值范围 [0, 2147483647]",
+              "required": false
+            }
           ]
-        },
-        {
-          "name": "audio",
-          "type": "boolean",
-          "description": "是否添加音频。\n\n      参数优先级：audio_url > audio，仅在 audio_url 为空时有效。\n\n      - `true`：默认，自动为视频添加配音\n      - `false`：不添加音频，输出为静音视频\n\n      示例值：true",
-          "required": false,
-          "enum": [
-            "true",
-            "false"
-          ]
-        },
-        {
-          "name": "seed",
-          "type": "integer",
-          "description": "随机数种子，用于控制模型生成内容的随机性。取值范围：[0, 2147483647]。\n\n      如果不填写，系统自动生成随机种子。若希望生成效果较为稳定一致，可指定相同的seed值。",
-          "required": false
         }
       ],
       "product_ids": [
@@ -11136,7 +11152,7 @@
       "name": "OpenAI Sora 2 (reverse) 生成视频",
       "description": "OpenAI Sora 2 (reverse) 生成视频",
       "categories": [
-        "video_v2v"
+        "video_t2v"
       ],
       "endpoint": "/v3/async/sora-2-video-reverse",
       "is_async": true,

@@ -143,7 +143,16 @@ class JiekouAPI:
             try:
                 data = response.json()
                 error_msg = data.get("message", f"API 错误: {response.status_code}")
-                error_code = data.get("code", "UNKNOWN_ERROR")
+                error_code = data.get("code") or data.get("reason", "UNKNOWN_ERROR")
+                
+                # Include metadata details if present (e.g., validation errors)
+                metadata = data.get("metadata", {})
+                if metadata:
+                    details = metadata.get("details", "")
+                    if details:
+                        error_msg = f"{error_msg} | {details}"
+                    # Log full response for debugging
+                    logger.error(f"[JieKou] API Error Response: {data}")
             except ValueError:
                 error_msg = f"API 错误: {response.status_code} - {response.text}"
                 error_code = "UNKNOWN_ERROR"
@@ -196,24 +205,23 @@ class JiekouAPI:
             logger.info(f"[JieKou] ===== API Request =====")
             logger.info(f"[JieKou] {method} {endpoint}")
             
-            # Log request body (truncate long strings like base64)
+            # Log request body (truncate long strings like base64, but not URLs)
             if data:
-                log_data = {}
-                for k, v in data.items():
-                    if isinstance(v, str) and len(v) > 200:
-                        log_data[k] = v[:50] + f"... ({len(v)} chars)"
-                    elif isinstance(v, list):
-                        log_data[k] = [
-                            (s[:50] + f"... ({len(s)} chars)" if isinstance(s, str) and len(s) > 200 else s)
-                            for s in v
-                        ]
+                def truncate_value(v, max_len: int = 200):
+                    """Recursively truncate strings in nested structures, but never truncate URLs"""
+                    if isinstance(v, str):
+                        if v.startswith("http://") or v.startswith("https://"):
+                            return v  # Never truncate URLs
+                        if len(v) > max_len:
+                            return v[:50] + f"... ({len(v)} chars)"
+                        return v
                     elif isinstance(v, dict):
-                        log_data[k] = {
-                            dk: (dv[:50] + f"... ({len(dv)} chars)" if isinstance(dv, str) and len(dv) > 200 else dv)
-                            for dk, dv in v.items()
-                        }
-                    else:
-                        log_data[k] = v
+                        return {k2: truncate_value(v2, max_len) for k2, v2 in v.items()}
+                    elif isinstance(v, list):
+                        return [truncate_value(item, max_len) for item in v]
+                    return v
+                
+                log_data = truncate_value(data)
                 logger.info(f"[JieKou] Request body: {log_data}")
             if files:
                 logger.info(f"[JieKou] Files: {list(files.keys())}")
@@ -256,16 +264,31 @@ class JiekouAPI:
                     logger.info(f"[JieKou] Status: {response.status_code}")
                     if expect_json and isinstance(result, dict):
                         # Truncate long values in response for logging
+                        # But don't truncate URLs (http:// or https://)
+                        def is_url(s: str) -> bool:
+                            return s.startswith("http://") or s.startswith("https://")
+                        
+                        def truncate_if_needed(s: str, max_len: int = 200) -> str:
+                            """Truncate string if too long, but never truncate URLs"""
+                            if not isinstance(s, str):
+                                return s
+                            if is_url(s):
+                                return s  # Never truncate URLs
+                            if len(s) > max_len:
+                                return s[:100] + f"... ({len(s)} chars)"
+                            return s
+                        
                         log_result = {}
                         for k, v in result.items():
-                            if isinstance(v, str) and len(v) > 200:
-                                log_result[k] = v[:100] + f"... ({len(v)} chars)"
+                            if isinstance(v, str):
+                                log_result[k] = truncate_if_needed(v)
                             elif isinstance(v, list) and v:
                                 # Show first item if list
                                 if isinstance(v[0], dict):
                                     log_result[k] = f"[{len(v)} items] first: {str(v[0])[:100]}..."
-                                elif isinstance(v[0], str) and len(v[0]) > 100:
-                                    log_result[k] = f"[{len(v)} items] first: {v[0][:50]}..."
+                                elif isinstance(v[0], str):
+                                    first_item = truncate_if_needed(v[0], 100)
+                                    log_result[k] = f"[{len(v)} items] first: {first_item}"
                                 else:
                                     log_result[k] = v
                             else:
@@ -521,6 +544,20 @@ class JiekouAPI:
             # Check if completed
             if status == TaskStatus.SUCCEED:
                 logger.info(f"[JieKou] Task {task_id} completed successfully")
+                # Log final response (truncate long strings but not URLs)
+                def truncate_for_log(v, max_len: int = 200):
+                    if isinstance(v, str):
+                        if v.startswith("http://") or v.startswith("https://"):
+                            return v
+                        if len(v) > max_len:
+                            return v[:50] + f"... ({len(v)} chars)"
+                        return v
+                    elif isinstance(v, dict):
+                        return {k: truncate_for_log(val, max_len) for k, val in v.items()}
+                    elif isinstance(v, list):
+                        return [truncate_for_log(item, max_len) for item in v]
+                    return v
+                logger.info(f"[JieKou] Final task response: {truncate_for_log(response)}")
                 return response
             elif status == TaskStatus.FAILED:
                 reason = task_info.get("reason", "") or task_info.get("error", "") or task_info.get("message", "")

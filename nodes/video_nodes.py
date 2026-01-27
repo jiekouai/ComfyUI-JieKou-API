@@ -102,14 +102,14 @@ class JieKouVideoGeneration:
                 "image_url": ("STRING", {
                     "default": "",
                     "placeholder": "图生视频：输入图片 URL 或 base64（优先使用）",
-                    "dynamicPrompts": True  # 允许右键转换为输入槽
+                    "dynamicPrompts": False  # URL 不能使用动态提示词，会截断
                 }),
                 # Reference video URLs for Wan 2.6 V2V model
                 "reference_video_urls": ("STRING", {
                     "default": "",
                     "multiline": True,
                     "placeholder": "参考视频URL (1-3条，每行一个)",
-                    "dynamicPrompts": True  # 允许右键转换为输入槽
+                    "dynamicPrompts": False  # URL 不能使用动态提示词，会截断
                 }),
                 # Hidden input for dynamic parameters (JSON string)
                 # JavaScript will serialize dynamic widget values here

@@ -123,7 +123,7 @@ def tensor_to_base64(tensor: torch.Tensor, format: str = "PNG") -> str:
     
     Args:
         tensor: torch.Tensor with shape [B, H, W, C] or [H, W, C]
-        format: Image format (PNG, JPEG)
+        format: Image format (PNG, JPEG, WEBP)
     
     Returns:
         Base64 encoded image string
@@ -136,8 +136,17 @@ def tensor_to_base64(tensor: torch.Tensor, format: str = "PNG") -> str:
     np_image = tensor.cpu().numpy()
     np_image = (np_image * 255).clip(0, 255).astype(np.uint8)
     
+    # Check if tensor has alpha channel (RGBA)
+    if np_image.shape[-1] == 4:
+        mode = "RGBA"
+        # Force PNG for alpha channel images
+        if format.upper() == "JPEG":
+            format = "PNG"
+    else:
+        mode = "RGB"
+    
     # Create PIL Image
-    image = Image.fromarray(np_image, mode="RGB")
+    image = Image.fromarray(np_image, mode=mode)
     
     # Encode to base64
     buffer = BytesIO()
@@ -145,6 +154,65 @@ def tensor_to_base64(tensor: torch.Tensor, format: str = "PNG") -> str:
     b64_string = base64.b64encode(buffer.getvalue()).decode("utf-8")
     
     return b64_string
+
+
+def tensor_to_data_uri(tensor: torch.Tensor, format: str = "PNG") -> str:
+    """
+    Convert ComfyUI IMAGE tensor to data URI string
+    
+    Args:
+        tensor: torch.Tensor with shape [B, H, W, C] or [H, W, C]
+        format: Image format (PNG, JPEG, WEBP)
+    
+    Returns:
+        Data URI string like "data:image/png;base64,..."
+    """
+    b64_string = tensor_to_base64(tensor, format=format)
+    
+    # Map format to MIME type
+    mime_map = {
+        "PNG": "image/png",
+        "JPEG": "image/jpeg",
+        "JPG": "image/jpeg",
+        "WEBP": "image/webp",
+        "GIF": "image/gif",
+    }
+    mime_type = mime_map.get(format.upper(), "image/png")
+    
+    return f"data:{mime_type};base64,{b64_string}"
+
+
+def get_image_format_from_url(url: str) -> str:
+    """
+    Detect image format from URL or data URI
+    
+    Args:
+        url: Image URL or data URI
+    
+    Returns:
+        Format string (png, jpeg, webp) or empty string if unknown
+    """
+    if not url:
+        return ""
+    
+    url_lower = url.lower().strip()
+    
+    # Check data URI format
+    if url_lower.startswith("data:image/"):
+        # Extract MIME type: data:image/jpeg;base64,...
+        mime_part = url_lower.split(";")[0]  # "data:image/jpeg"
+        format_part = mime_part.split("/")[-1]  # "jpeg"
+        return format_part if format_part in ("png", "jpeg", "jpg", "webp", "gif") else ""
+    
+    # Check URL extension
+    # Remove query string first
+    url_path = url_lower.split("?")[0]
+    
+    for ext in (".png", ".jpeg", ".jpg", ".webp", ".gif"):
+        if url_path.endswith(ext):
+            return ext[1:]  # Remove dot
+    
+    return ""
 
 
 # ===== tensor_to_bytes() =====

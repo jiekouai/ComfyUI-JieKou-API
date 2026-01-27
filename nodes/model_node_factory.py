@@ -252,8 +252,8 @@ def parse_range_from_description(description: str) -> tuple[Any, Any]:
     
     # Patterns for range values
     patterns = [
-        r'[\[【]\s*([\-]?\d+\.?\d*)\s*[,，~～]\s*([\-]?\d+\.?\d*)\s*[\]】]',  # [1, 4] or [1 ~ 4]
-        r'取值范围[：:]\s*[\[【]?\s*([\-]?\d+\.?\d*)\s*[,，~～]\s*([\-]?\d+\.?\d*)',  # 取值范围：[1, 4]
+        r'[\[【]\s*([\-]?\d+\.?\d*)\s*[,，~～\-]\s*([\-]?\d+\.?\d*)\s*[\]】]',  # [1, 4] or [1 ~ 4] or [1-4]
+        r'取值范围[：:]\s*[\[【]?\s*(\d+\.?\d*)\s*[,，~～\-]\s*(\d+\.?\d*)',  # 取值范围：1-4 or 取值范围: [1, 4]
         r'[Rr]ange[：:]?\s*[\[（(]?\s*([\-]?\d+\.?\d*)\s*[-,~]\s*([\-]?\d+\.?\d*)',  # Range: [1, 4]
     ]
     
@@ -342,6 +342,9 @@ def param_to_comfyui_type(param: dict) -> tuple[Any, dict]:
         type_spec = "INT"
         if default is not None:
             options["default"] = int(default)
+        elif minimum is not None:
+            # Use minimum as default if no explicit default (to satisfy API constraints)
+            options["default"] = int(minimum)
         else:
             options["default"] = 0
         
@@ -357,6 +360,9 @@ def param_to_comfyui_type(param: dict) -> tuple[Any, dict]:
         type_spec = "FLOAT"
         if default is not None:
             options["default"] = float(default)
+        elif minimum is not None:
+            # Use minimum as default if no explicit default (to satisfy API constraints)
+            options["default"] = float(minimum)
         else:
             options["default"] = 0.0
         
@@ -526,7 +532,7 @@ def build_input_types(model_config: dict, categories: list) -> dict:
             optional["image_url"] = ("STRING", {
                 "default": "",
                 "placeholder": "输入图片 URL 或 base64 (优先使用)",
-                "dynamicPrompts": True
+                "dynamicPrompts": False
             })
     
     # mj_remove_background only accepts URL input (no image tensor support)
@@ -537,12 +543,42 @@ def build_input_types(model_config: dict, categories: list) -> dict:
         })
     
     # For V2V models, add video_url input
-    needs_video_input = "video_v2v" in categories
+    # But skip for models that use task_id instead (like sora_2_remix_reverse)
+    needs_video_input = "video_v2v" in categories and not uses_task_id
     if needs_video_input:
         required["video_url"] = ("STRING", {
             "default": "",
             "placeholder": "输入视频 URL",
-            "dynamicPrompts": True
+            "dynamicPrompts": False
+        })
+    
+    # Vidu startend models need two image inputs (first frame + last frame)
+    is_vidu_startend = model_id in ("vidu_2_0_startend2video", "vidu_q1_startend2video")
+    # Vidu reference models need 1-7 reference images (we support single image for now)
+    is_vidu_reference = model_id in ("vidu_2_0_reference2video", "vidu_q1_reference2video")
+    
+    if is_vidu_reference:
+        # Add single image input for reference (will be wrapped in array)
+        optional["image"] = ("IMAGE", {"tooltip": "参考图片"})
+        optional["image_url"] = ("STRING", {
+            "default": "",
+            "placeholder": "参考图片 URL (优先使用)",
+            "dynamicPrompts": False
+        })
+    
+    if is_vidu_startend:
+        # Add first_image and last_image inputs for start/end frame
+        optional["first_image"] = ("IMAGE", {"tooltip": "起始帧图片"})
+        optional["last_image"] = ("IMAGE", {"tooltip": "结束帧图片"})
+        optional["first_image_url"] = ("STRING", {
+            "default": "",
+            "placeholder": "起始帧图片 URL (优先使用)",
+            "dynamicPrompts": False
+        })
+        optional["last_image_url"] = ("STRING", {
+            "default": "",
+            "placeholder": "结束帧图片 URL (优先使用)",
+            "dynamicPrompts": False
         })
     
     # Add size preset dropdown if this model uses presets
@@ -710,7 +746,7 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
                  custom_size: str = None, **kwargs):
         """Generate image using this model"""
         from ..utils.api_client import JiekouAPI, JiekouAPIError
-        from ..utils.tensor_utils import url_to_tensor, base64_to_tensor, tensor_to_base64
+        from ..utils.tensor_utils import url_to_tensor, base64_to_tensor, tensor_to_base64, tensor_to_data_uri
         
         logger.info(f"[JieKou] ========== {model_name} ==========")
         logger.info(f"[JieKou] Endpoint: {endpoint}")
@@ -761,8 +797,8 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
                 input_image_data = image_url.strip()
                 image_source = "image_url"
             elif image is not None:
-                b64_data = tensor_to_base64(image, format="PNG")
-                input_image_data = f"data:image/png;base64,{b64_data}"
+                # Use tensor_to_data_uri to get proper format with data URI prefix
+                input_image_data = tensor_to_data_uri(image, format="PNG")
                 image_source = "image_tensor"
             else:
                 input_image_data = ""
@@ -884,8 +920,23 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
                     if not images_value or (isinstance(images_value, list) and all(not img or (isinstance(img, str) and not img.strip()) for img in images_value)):
                         del data["images"]
             
-            # Log request
-            log_data = {k: (v[:50] + "..." if isinstance(v, str) and len(v) > 100 else v) for k, v in data.items()}
+            # Log request (truncate base64 but not URLs)
+            def _truncate_for_log(v):
+                if isinstance(v, str):
+                    # Don't truncate URLs
+                    if v.startswith("http://") or v.startswith("https://"):
+                        return v
+                    # Truncate long strings (base64, etc.)
+                    if len(v) > 100:
+                        return v[:50] + f"... ({len(v)} chars)"
+                    return v
+                elif isinstance(v, dict):
+                    return {k2: _truncate_for_log(v2) for k2, v2 in v.items()}
+                elif isinstance(v, list):
+                    return [_truncate_for_log(item) for item in v]
+                return v
+            
+            log_data = {k: _truncate_for_log(v) for k, v in data.items()}
             logger.info(f"[JieKou] Request: {log_data}")
             if files:
                 logger.info(f"[JieKou] Files: {list(files.keys())}")
@@ -1054,13 +1105,18 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
     # Build nested param map for request body construction
     nested_param_map = build_nested_param_map(model_config)
     
+    # Check if this is a Sora model (needs task_id output)
+    is_sora_model = "sora" in model_id.lower()
+    
     # Create the node class dynamically
     class_name = f"JieKou{model_id.replace('-', '_').replace('.', '_').title().replace('_', '')}"
     
-    def generate_video(self, save_to_disk: bool = True, image: torch.Tensor = None, image_url: str = "", video_url: str = "", **kwargs):
+    def generate_video(self, save_to_disk: bool = True, image: torch.Tensor = None, image_url: str = "", video_url: str = "",
+                        first_image: torch.Tensor = None, last_image: torch.Tensor = None,
+                        first_image_url: str = "", last_image_url: str = "", **kwargs):
         """Generate video using this model"""
         from ..utils.api_client import JiekouAPI, JiekouAPIError
-        from ..utils.tensor_utils import video_to_frames, tensor_to_base64
+        from ..utils.tensor_utils import video_to_frames, tensor_to_base64, tensor_to_data_uri
         
         logger.info(f"[JieKou] ========== {model_name} ==========")
         logger.info(f"[JieKou] Endpoint: {endpoint}")
@@ -1068,10 +1124,6 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
         
         try:
             api = JiekouAPI()
-            
-            # Determine input image source: image_url has higher priority (if valid)
-            input_image_data = ""
-            image_source = ""
             
             def is_valid_image_url(url: str) -> bool:
                 if not url or not isinstance(url, str):
@@ -1085,13 +1137,55 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
                     return True
                 return False
             
-            if image_url and is_valid_image_url(image_url):
-                input_image_data = image_url.strip()
-                image_source = "image_url"
-            elif image is not None:
-                b64_data = tensor_to_base64(image, format="PNG")
-                input_image_data = f"data:image/png;base64,{b64_data}"
-                image_source = "image_tensor"
+            def get_image_data(img_tensor: torch.Tensor, img_url: str) -> str:
+                """Get image data from URL (priority) or tensor"""
+                if img_url and is_valid_image_url(img_url):
+                    return img_url.strip()
+                elif img_tensor is not None:
+                    # Use tensor_to_data_uri to get proper format with data URI prefix
+                    return tensor_to_data_uri(img_tensor, format="PNG")
+                return ""
+            
+            # Check if this is a Vidu startend model (needs two images)
+            is_vidu_startend = model_id in ("vidu_2_0_startend2video", "vidu_q1_startend2video")
+            # Check if this is a Vidu reference model (needs 1-7 images, we support single)
+            is_vidu_reference = model_id in ("vidu_2_0_reference2video", "vidu_q1_reference2video")
+            
+            # Determine input image source: image_url has higher priority (if valid)
+            input_image_data = ""
+            image_source = ""
+            startend_images = []  # For Vidu startend models
+            reference_images = []  # For Vidu reference models
+            
+            if is_vidu_startend:
+                # Handle first and last image for startend models
+                first_img_data = get_image_data(first_image, first_image_url)
+                last_img_data = get_image_data(last_image, last_image_url)
+                
+                if first_img_data and last_img_data:
+                    startend_images = [first_img_data, last_img_data]
+                    image_source = "startend_images"
+                    logger.info(f"[JieKou] Startend images: first={bool(first_img_data)}, last={bool(last_img_data)}")
+                else:
+                    logger.warning(f"[JieKou] Vidu startend model requires both first_image and last_image")
+            elif is_vidu_reference:
+                # Handle single image for reference models (wrap in array)
+                ref_img_data = get_image_data(image, image_url)
+                if ref_img_data:
+                    reference_images = [ref_img_data]
+                    image_source = "reference_images"
+                    logger.info(f"[JieKou] Reference image: 1 image")
+                else:
+                    logger.warning(f"[JieKou] Vidu reference model requires at least one image")
+            else:
+                # Standard single image handling
+                if image_url and is_valid_image_url(image_url):
+                    input_image_data = image_url.strip()
+                    image_source = "image_url"
+                elif image is not None:
+                    # Use tensor_to_data_uri to get proper format with data URI prefix
+                    input_image_data = tensor_to_data_uri(image, format="PNG")
+                    image_source = "image_tensor"
             
             logger.info(f"[JieKou] Image source: {image_source if image_source else 'None (T2V mode)'}")
             
@@ -1132,6 +1226,14 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
                     param_type = param_type_map.get(key, "string")
                     coerced_value = coerce_param_value(value, param_type)
                     
+                    # Special handling for array-type parameters that come in as strings
+                    if key == "reference_video_urls" and isinstance(coerced_value, str):
+                        # Convert comma-separated string to array, or single URL to array
+                        if "," in coerced_value:
+                            coerced_value = [url.strip() for url in coerced_value.split(",") if url.strip()]
+                        else:
+                            coerced_value = [coerced_value.strip()]
+                    
                     # Check if this param belongs to a nested object
                     parent = nested_param_map.get(key)
                     if parent:
@@ -1156,7 +1258,13 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
                     data["video"] = video_url.strip()
                 
                 # Add image for I2V models
-                if input_image_data:
+                # Special handling for Vidu startend models (two images)
+                if is_vidu_startend and startend_images:
+                    data["images"] = startend_images
+                # Special handling for Vidu reference models (single image wrapped in array)
+                elif is_vidu_reference and reference_images:
+                    data["images"] = reference_images
+                elif input_image_data:
                     # Different models use different field names
                     if "vidu" in model_id.lower():
                         # Vidu uses "images" (plural, string[])
@@ -1164,6 +1272,23 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
                     elif any(x in model_id.lower() for x in ["wan2_1", "wan2.1", "wan-2.1", "wan-i2v"]):
                         # Wan 2.1 uses "image_url"
                         data["image_url"] = input_image_data
+                    elif any(x in model_id.lower() for x in ["wan2_2", "wan2_5", "wan2_6", "wan2.2", "wan2.5", "wan2.6"]):
+                        # Wan 2.2/2.5/2.6 uses "img_url"
+                        data["img_url"] = input_image_data
+                    elif "kling_v1_6" in model_id.lower() or "kling-v1.6" in model_id.lower():
+                        # Kling V1.6 uses "image_url", other Kling versions use "image"
+                        data["image_url"] = input_image_data
+                    elif "veo_3_0_generate_preview_img2video" in model_id or "veo-3.0-generate-preview-img2video" in model_id.lower():
+                        # Veo 3.0 preview img2video uses image_url or image_base64
+                        if input_image_data.startswith("http://") or input_image_data.startswith("https://"):
+                            data["image_url"] = input_image_data
+                        elif input_image_data.startswith("data:"):
+                            # Extract base64 data without the data URI prefix
+                            img_data = input_image_data.split(",", 1)[1] if "," in input_image_data else input_image_data
+                            data["image_base64"] = img_data
+                        else:
+                            # Assume it's already raw base64
+                            data["image_base64"] = input_image_data
                     else:
                         # Most models use "image" (singular)
                         data["image"] = input_image_data
@@ -1178,12 +1303,53 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
                     param_type = param_type_map.get(key, "string")
                     data[key] = coerce_param_value(value, param_type)
             
-            # Log request
-            log_data = {k: (v[:50] + "..." if isinstance(v, str) and len(v) > 100 else v) for k, v in data.items()}
+            # Special handling for hunyuan_video_fast
+            if model_id == "hunyuan_video_fast":
+                # Add fixed model_name (only supports hunyuan-video-fast)
+                data["model_name"] = "hunyuan-video-fast"
+                # Convert aspect_ratio to width/height
+                aspect_ratio = data.pop("aspect_ratio", "16:9")
+                if aspect_ratio == "16:9":
+                    data["width"] = 1280
+                    data["height"] = 720
+                else:  # 9:16
+                    data["width"] = 720
+                    data["height"] = 1280
+            
+            # Special handling for Wan 2.1 size presets
+            if model_id in ("wan2_1_i2v", "wan2_1_t2v"):
+                size_preset = data.pop("size_preset", "480p_横向")
+                size_map = {
+                    "480p_横向": (832, 480),
+                    "480p_竖向": (480, 832),
+                    "720p_横向": (1280, 720),
+                    "720p_竖向": (720, 1280),
+                }
+                width, height = size_map.get(size_preset, (832, 480))
+                data["width"] = width
+                data["height"] = height
+            
+            # Log request (truncate base64 but not URLs)
+            def _truncate_for_log(v):
+                if isinstance(v, str):
+                    # Don't truncate URLs
+                    if v.startswith("http://") or v.startswith("https://"):
+                        return v
+                    # Truncate long strings (base64, etc.)
+                    if len(v) > 100:
+                        return v[:50] + f"... ({len(v)} chars)"
+                    return v
+                elif isinstance(v, dict):
+                    return {k2: _truncate_for_log(v2) for k2, v2 in v.items()}
+                elif isinstance(v, list):
+                    return [_truncate_for_log(item) for item in v]
+                return v
+            
+            log_data = {k: _truncate_for_log(v) for k, v in data.items()}
             logger.info(f"[JieKou] Request: {log_data}")
             
             # Make API request
-            result = api.call_model_and_wait(endpoint, data, is_async)
+            result = api.call_model_and_wait(endpoint, data, is_async=is_async)
             
             # Get video URL
             video_url = api.get_video_result_url(result)
@@ -1210,11 +1376,19 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
             frames_tensor = video_to_frames(video_bytes)
             logger.info(f"[JieKou] Generated video: {frames_tensor.shape[0]} frames")
             
-            ui_info = {}
+            # Always include video_url in ui_info (for testing and history tracking)
+            ui_info = {"video_url": video_url}
             if save_to_disk and filename:
                 ui_info["text"] = [f"✅ 视频已保存: {filename}"]
             
-            return {"ui": ui_info, "result": (frames_tensor, video_url,)}
+            # Get task_id from result for Sora models
+            task_id_output = result.get("_task_id", "")
+            
+            # Return different tuple based on model type
+            if is_sora_model:
+                return {"ui": ui_info, "result": (frames_tensor, video_url, task_id_output)}
+            else:
+                return {"ui": ui_info, "result": (frames_tensor, video_url,)}
         
         except JiekouAPIError as e:
             logger.error(f"[JieKou] API Error: {e.message}")
@@ -1223,12 +1397,19 @@ def create_video_node_class(model_config: dict, target_category: str = None) -> 
             logger.error(f"[JieKou] Error: {e}")
             raise
     
-    # Create the class
+    # Create the class with appropriate return types
+    if is_sora_model:
+        return_types = ("IMAGE", "STRING", "STRING",)
+        return_names = ("frames", "video_url", "task_id",)
+    else:
+        return_types = ("IMAGE", "STRING",)
+        return_names = ("frames", "video_url",)
+    
     node_class = type(class_name, (), {
         "CATEGORY": node_category,
         "FUNCTION": "generate_video",
-        "RETURN_TYPES": ("IMAGE", "STRING",),
-        "RETURN_NAMES": ("frames", "video_url",),
+        "RETURN_TYPES": return_types,
+        "RETURN_NAMES": return_names,
         "OUTPUT_NODE": True,
         "INPUT_TYPES": classmethod(lambda cls: input_types),
         "generate_video": generate_video,
@@ -1299,10 +1480,27 @@ def create_audio_node_class(model_config: dict, target_category: str = None) -> 
                 param_type = param_type_map.get(key, "string")
                 data[key] = coerce_param_value(value, param_type)
             
-            logger.info(f"[JieKou] Request: {data}")
+            # Log request (truncate base64 but not URLs)
+            def _truncate_for_log(v):
+                if isinstance(v, str):
+                    # Don't truncate URLs
+                    if v.startswith("http://") or v.startswith("https://"):
+                        return v
+                    # Truncate long strings (base64, etc.)
+                    if len(v) > 100:
+                        return v[:50] + f"... ({len(v)} chars)"
+                    return v
+                elif isinstance(v, dict):
+                    return {k2: _truncate_for_log(v2) for k2, v2 in v.items()}
+                elif isinstance(v, list):
+                    return [_truncate_for_log(item) for item in v]
+                return v
+            
+            log_data = {k: _truncate_for_log(v) for k, v in data.items()}
+            logger.info(f"[JieKou] Request: {log_data}")
             
             # Make API request
-            result = api.call_model_and_wait(endpoint, data, is_async)
+            result = api.call_model_and_wait(endpoint, data, is_async=is_async)
             
             # Get audio URL
             audio_url = api.get_audio_result_url(result)
