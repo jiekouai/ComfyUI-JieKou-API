@@ -188,6 +188,11 @@ class ModelConfigLoader:
             )
         
         for model_data in config.get("models", []):
+            # Skip disabled models (code preserved in config but node not registered)
+            if model_data.get("disabled", False):
+                logger.debug(f"[JieKou] Skipping disabled model: {model_data.get('id', 'unknown')}")
+                continue
+            
             # Parse parameters
             params = []
             for param_data in model_data.get("parameters", []):

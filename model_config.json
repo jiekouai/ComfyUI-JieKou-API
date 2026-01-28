@@ -4522,7 +4522,10 @@
           "name": "scale",
           "type": "float",
           "description": "扩图目标比例，即在视图中新图所占区域相较原图区域的倍数。\n  \n  取值范围：1.1~2.0\n  \n  例如：一个 1:1 图片扩图后，外扩 20%（scale=1.2）",
-          "required": true
+          "required": true,
+          "minimum": 1.1,
+          "maximum": 2.0,
+          "default": 1.2
         }
       ],
       "product_ids": [
@@ -5199,7 +5202,9 @@
           "name": "model",
           "type": "string",
           "description": "用于图像生成的模型。目前仅支持 `gpt-image-1`。",
-          "required": true
+          "required": true,
+          "enum": ["gpt-image-1"],
+          "default": "gpt-image-1"
         },
         {
           "name": "prompt",
@@ -5212,9 +5217,9 @@
           "type": "string",
           "description": "生成图像的质量，默认为 `auto`。\n\n  对于 `gpt-image-1`，支持的取值有：`auto`、`high`、`medium`、`low`。",
           "required": false,
+          "default": "auto",
           "enum": [
             "auto",
-            "gpt-image-1",
             "high",
             "medium",
             "low"
@@ -5231,9 +5236,9 @@
           "type": "string",
           "description": "生成图像的尺寸，默认为 `auto`。\n\n  对于 `gpt-image-1`，支持的取值有：\n  - `1024x1024`：正方形\n  - `1536x1024`：横向\n  - `1024x1536`：纵向\n  - `auto`：默认值",
           "required": false,
+          "default": "auto",
           "enum": [
             "auto",
-            "gpt-image-1",
             "1024x1024",
             "1536x1024",
             "1024x1536"
@@ -11151,6 +11156,7 @@
       "id": "sora_2_video_reverse",
       "name": "OpenAI Sora 2 (reverse) 生成视频",
       "description": "OpenAI Sora 2 (reverse) 生成视频",
+      "disabled": true,
       "categories": [
         "video_t2v"
       ],
@@ -11239,6 +11245,7 @@
       "id": "sora_2_remix_reverse",
       "name": "OpenAI Sora 2 (reverse) 编辑视频",
       "description": "OpenAI Sora 2 (reverse) 编辑视频",
+      "disabled": true,
       "categories": [
         "video_v2v"
       ],

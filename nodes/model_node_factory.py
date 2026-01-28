@@ -621,9 +621,10 @@ def build_input_types(model_config: dict, categories: list) -> dict:
         # But for GPT image edit, include "model" parameter as enum input
         skip_params = {"model", "image", "images", "img_url", "image_url", "video"}
         if name in skip_params:
-            # Special case: GPT image edit needs model parameter as enum input
-            if name == "model" and is_gpt_image_edit:
-                # Process model parameter for GPT image edit
+            # Special case: GPT models need model parameter as enum input
+            is_gpt_model = model_id in ("gpt_image_edits", "gpt_image_generations", "gpt-image-1-edit")
+            if name == "model" and is_gpt_model:
+                # Process model parameter for GPT models
                 type_spec, options = param_to_comfyui_type(param_data)
                 if is_required:
                     required[name] = (type_spec, options) if isinstance(type_spec, str) else (type_spec[0], options)
@@ -1029,6 +1030,11 @@ def create_image_node_class(model_config: dict, target_category: str = None) -> 
             
             # Extract task_id for MJ models
             task_id_output = result.get("_task_id", "")
+            
+            # Add task_id to ui_info for MJ models (for test script extraction)
+            # Wrap in list to prevent ComfyUI from converting string to char array
+            if is_mj_model and task_id_output:
+                ui_info["task_id"] = [task_id_output]
             
             # Return different tuple based on model type
             if is_mj_model:
