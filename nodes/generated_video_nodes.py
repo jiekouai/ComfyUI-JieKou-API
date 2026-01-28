@@ -110,10 +110,10 @@ def register_video_nodes():
                     # Display name is the same for all categories (no suffix)
                     display_name = model.name or model.id
                     
-                VIDEO_NODE_CLASS_MAPPINGS[class_name] = node_class
+                    VIDEO_NODE_CLASS_MAPPINGS[class_name] = node_class
                     VIDEO_NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
                     
-            except Exception as e:
+                except Exception as e:
                     logger.error(f"[JieKou] Failed to create video node for {model.id} in {category}: {e}")
         
         logger.info(f"[JieKou] Registered {len(VIDEO_NODE_CLASS_MAPPINGS)} video model nodes")
@@ -124,4 +124,3 @@ def register_video_nodes():
 
 # Register nodes on module import
 register_video_nodes()
-
